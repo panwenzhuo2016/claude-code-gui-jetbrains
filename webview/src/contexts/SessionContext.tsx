@@ -3,6 +3,7 @@ import { SessionState, Message } from '../types';
 import { SessionMetaDto } from '../dto';
 import { useBridgeContext } from './BridgeContext';
 import { useApi } from './ApiContext';
+import { getAdapter, onBridgeReady } from '../adapters';
 
 declare global {
   interface Window {
@@ -21,6 +22,7 @@ interface SessionContextValue {
   // Actions
   loadSessions: () => Promise<void>;
   resetToNewSession: () => void;
+  openNewTab: () => void;
   createSessionWithMessage: (firstMessage: string) => { sessionId: string; title: string };
   switchSession: (sessionId: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -85,6 +87,9 @@ export function SessionProvider({ children, onSessionChange, onMessagesLoaded }:
   // JetBrains에서 kotlinBridgeReady 이벤트 후 workingDirectory 주입 감지
   React.useEffect(() => {
     const handleBridgeReady = () => {
+      // Re-initialize IDE adapter when Kotlin bridge becomes available
+      onBridgeReady();
+
       if (window.workingDirectory && !workingDirectory) {
         setWorkingDirectoryState(window.workingDirectory);
         api.setWorkingDir(window.workingDirectory);
@@ -165,6 +170,16 @@ export function SessionProvider({ children, onSessionChange, onMessagesLoaded }:
       console.error('[SessionContext] Failed to clear CLI session:', error);
     });
   }, [api.sessions]);
+
+  const openNewTab = useCallback(() => {
+    // Use IDE adapter to open new tab
+    // - JetBrains: Opens new editor tab via Kotlin bridge
+    // - Browser: Opens new browser tab via window.open()
+    // Note: Does NOT reset local state - current tab keeps its messages
+    getAdapter().openNewTab().catch(error => {
+      console.error('[SessionContext] Failed to open new tab:', error);
+    });
+  }, []);
 
   const createSessionWithMessage = useCallback((firstMessage: string) => {
     const newId = generateSessionId();
@@ -269,6 +284,7 @@ export function SessionProvider({ children, onSessionChange, onMessagesLoaded }:
     workingDirectory,
     loadSessions,
     resetToNewSession,
+    openNewTab,
     createSessionWithMessage,
     switchSession,
     deleteSession,

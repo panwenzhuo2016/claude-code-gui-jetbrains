@@ -63,5 +63,15 @@
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift C"/>
         </action>
+
+        <!-- New Tab action (only when Claude Code editor is focused) -->
+        <action
+            id="ClaudeCode.NewTab"
+            class="com.github.yhk1038.claudecodegui.actions.NewClaudeCodeTabAction"
+            text="New Claude Code Tab"
+            description="Open a new Claude Code editor tab">
+            <keyboard-shortcut keymap="$default" first-keystroke="meta N"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl N"/>
+        </action>
     </actions>
 </idea-plugin>

@@ -22,7 +22,6 @@ export function ChatPanel() {
     setInput,
     handleSubmit,
     retry,
-    clearMessages,
   } = chat;
 
   const {
@@ -31,7 +30,7 @@ export function ChatPanel() {
     sessionState,
     workingDirectory,
     setWorkingDirectory,
-    resetToNewSession,
+    openNewTab,
     createSessionWithMessage,
     switchSession,
     saveMessages,
@@ -62,10 +61,9 @@ export function ChatPanel() {
 
   const isEmpty = messages.length === 0;
 
-  const handleCreateSession = useCallback(() => {
-    clearMessages();
-    resetToNewSession();
-  }, [clearMessages, resetToNewSession]);
+  const handleOpenNewTab = useCallback(() => {
+    openNewTab();
+  }, [openNewTab]);
 
   const handleSelectProject = useCallback((path: string) => {
     setWorkingDirectory(path);
@@ -100,7 +98,7 @@ export function ChatPanel() {
           currentSessionId={currentSessionId}
           sessionTitle={sessionTitle}
           onSelectSession={switchSession}
-          onCreateSession={handleCreateSession}
+          onOpenNewTab={handleOpenNewTab}
         />
       </div>
 
@@ -171,6 +169,7 @@ export function ChatPanel() {
           onContinue={continueGeneration}
           disabled={sessionState === 'error' || !workingDirectory}
           sessionState={sessionState}
+          sessionId={currentSessionId}
         />
       </div>
     </div>

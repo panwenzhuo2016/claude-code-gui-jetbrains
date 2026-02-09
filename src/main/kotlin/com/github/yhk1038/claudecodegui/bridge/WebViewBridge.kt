@@ -1,14 +1,17 @@
 package com.github.yhk1038.claudecodegui.bridge
 
+import com.github.yhk1038.claudecodegui.actions.OpenClaudeCodeAction
 import com.github.yhk1038.claudecodegui.services.ClaudeCliService
 import com.github.yhk1038.claudecodegui.services.ClaudeSessionService
 import com.github.yhk1038.claudecodegui.services.DiffService
 import com.github.yhk1038.claudecodegui.services.SessionData
 import com.github.yhk1038.claudecodegui.toolwindow.ClaudeCodePanel
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
+import java.util.UUID
 
 /**
  * Bridge coordinator between ClaudeCliService and WebView
@@ -81,6 +84,7 @@ class WebViewBridge(
                 "LOAD_SESSIONS" -> handleLoadSessions()
                 // "SAVE_SESSION" removed - CLI sessions are read-only
                 "DELETE_SESSION" -> handleDeleteSession(payload)
+                "NEW_SESSION" -> handleNewSession()
                 else -> {
                     logger.warn("Unknown message type: $type")
                     buildJsonObject {
@@ -409,6 +413,22 @@ class WebViewBridge(
                 put("status", "error")
                 put("error", result.exceptionOrNull()?.message ?: "Failed to delete session")
             }
+        }
+    }
+
+    /**
+     * Handle NEW_SESSION - Open new Claude Code editor tab
+     * Note: This does NOT reset the current tab's state - that's handled by openNewTab() in SessionContext
+     */
+    private fun handleNewSession(): JsonObject {
+        ApplicationManager.getApplication().invokeLater {
+            val newSessionId = UUID.randomUUID().toString()
+            OpenClaudeCodeAction.openSession(project, newSessionId)
+            logger.info("Opened new Claude Code tab: $newSessionId")
+        }
+
+        return buildJsonObject {
+            put("status", "ok")
         }
     }
 

@@ -20,7 +20,7 @@ const defaultProps = {
   currentSessionId: 'session-1',
   sessionTitle: 'First Chat',
   onSelectSession: vi.fn(),
-  onCreateSession: vi.fn(),
+  onOpenNewTab: vi.fn(),
 };
 
 describe('SessionHeader', () => {
@@ -136,25 +136,25 @@ describe('SessionHeader', () => {
     expect(screen.queryByPlaceholderText('Search sessions...')).not.toBeInTheDocument();
   });
 
-  it('새 세션 버튼 클릭 시 onCreateSession 콜백 호출', async () => {
+  it('새 탭 버튼 클릭 시 onOpenNewTab 콜백 호출', async () => {
     const user = userEvent.setup();
-    const onCreateSession = vi.fn();
-    render(<SessionHeader {...defaultProps} onCreateSession={onCreateSession} />);
+    const onOpenNewTab = vi.fn();
+    render(<SessionHeader {...defaultProps} onOpenNewTab={onOpenNewTab} />);
 
-    // 새 세션 버튼 클릭
-    const newSessionButton = screen.getByTitle('New Chat');
-    await user.click(newSessionButton);
+    // 새 탭 버튼 클릭
+    const newTabButton = screen.getByTitle('새 탭 열기');
+    await user.click(newTabButton);
 
     // 콜백 호출 확인
-    expect(onCreateSession).toHaveBeenCalled();
+    expect(onOpenNewTab).toHaveBeenCalled();
   });
 
-  it('새 세션 버튼이 currentSessionId가 null일 때 비활성화', () => {
+  it('새 탭 버튼이 항상 활성화되어 있음', () => {
     render(<SessionHeader {...defaultProps} currentSessionId={null} />);
 
-    // 버튼 비활성화 확인
-    const newSessionButton = screen.getByTitle('Already in new session');
-    expect(newSessionButton).toBeDisabled();
+    // 버튼이 활성화되어 있음 확인
+    const newTabButton = screen.getByTitle('새 탭 열기');
+    expect(newTabButton).not.toBeDisabled();
   });
 
   it('현재 세션이 하이라이트 스타일로 표시', async () => {

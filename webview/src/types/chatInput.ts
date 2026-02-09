@@ -63,7 +63,7 @@ export const INPUT_MODES: Record<InputMode, InputModeConfig> = {
 };
 
 // 모드 순환 순서
-export const MODE_CYCLE: InputMode[] = ['plan', 'ask_before_edit', 'auto_edit', 'bypass'];
+export const MODE_CYCLE: InputMode[] = ['plan', 'bypass', 'ask_before_edit', 'auto_edit'];
 
 // ============================================
 // Active File Types (IDE에서 전달받을 타입)

@@ -23,6 +23,7 @@ interface SessionContextValue {
   loadSessions: () => Promise<void>;
   resetToNewSession: () => void;
   openNewTab: () => void;
+  openSettings: () => void;
   createSessionWithMessage: (firstMessage: string) => { sessionId: string; title: string };
   switchSession: (sessionId: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -181,6 +182,12 @@ export function SessionProvider({ children, onSessionChange, onMessagesLoaded }:
     });
   }, []);
 
+  const openSettings = useCallback(() => {
+    getAdapter().openSettings().catch(error => {
+      console.error('[SessionContext] Failed to open settings:', error);
+    });
+  }, []);
+
   const createSessionWithMessage = useCallback((firstMessage: string) => {
     const newId = generateSessionId();
     const now = new Date();
@@ -285,6 +292,7 @@ export function SessionProvider({ children, onSessionChange, onMessagesLoaded }:
     loadSessions,
     resetToNewSession,
     openNewTab,
+    openSettings,
     createSessionWithMessage,
     switchSession,
     deleteSession,

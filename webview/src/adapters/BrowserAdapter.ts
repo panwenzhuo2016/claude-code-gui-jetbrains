@@ -23,4 +23,16 @@ export class BrowserAdapter implements IdeAdapter {
 
     console.log('[BrowserAdapter] Opened new browser tab');
   }
+
+  async openSettings(): Promise<void> {
+    const url = new URL(window.location.href);
+    url.hash = '#/settings/general';
+    const newWindow = window.open(url.toString(), '_blank');
+
+    if (!newWindow) {
+      throw new Error('Failed to open settings tab. Pop-up might be blocked.');
+    }
+
+    console.log('[BrowserAdapter] Opened settings in new browser tab');
+  }
 }

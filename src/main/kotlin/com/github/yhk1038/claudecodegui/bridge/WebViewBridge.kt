@@ -5,6 +5,7 @@ import com.github.yhk1038.claudecodegui.services.ClaudeCliService
 import com.github.yhk1038.claudecodegui.services.ClaudeSessionService
 import com.github.yhk1038.claudecodegui.services.DiffService
 import com.github.yhk1038.claudecodegui.services.SessionData
+import com.github.yhk1038.claudecodegui.settings.ClaudeCodeSettings
 import com.github.yhk1038.claudecodegui.toolwindow.ClaudeCodePanel
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
@@ -85,6 +86,9 @@ class WebViewBridge(
                 // "SAVE_SESSION" removed - CLI sessions are read-only
                 "DELETE_SESSION" -> handleDeleteSession(payload)
                 "NEW_SESSION" -> handleNewSession()
+                "OPEN_SETTINGS" -> handleOpenSettings()
+                "GET_SETTINGS" -> handleGetSettings()
+                "SAVE_SETTINGS" -> handleSaveSettings(payload)
                 else -> {
                     logger.warn("Unknown message type: $type")
                     buildJsonObject {
@@ -427,6 +431,78 @@ class WebViewBridge(
             logger.info("Opened new Claude Code tab: $newSessionId")
         }
 
+        return buildJsonObject {
+            put("status", "ok")
+        }
+    }
+
+    /**
+     * Handle OPEN_SETTINGS - Open settings in a new editor tab
+     */
+    private fun handleOpenSettings(): JsonObject {
+        ApplicationManager.getApplication().invokeLater {
+            val settingsSessionId = "settings-${UUID.randomUUID()}"
+            OpenClaudeCodeAction.openSession(project, settingsSessionId, "#/settings/general")
+            logger.info("Opened settings in new tab: $settingsSessionId")
+        }
+
+        return buildJsonObject {
+            put("status", "ok")
+        }
+    }
+
+    /**
+     * Handle GET_SETTINGS - Return all settings to WebView
+     */
+    private fun handleGetSettings(): JsonObject {
+        val state = ClaudeCodeSettings.getInstance().state
+        return buildJsonObject {
+            put("status", "ok")
+            putJsonObject("settings") {
+                put("cliPath", state.cliPath)
+                put("permissionMode", state.permissionMode)
+                put("autoApplyLowRisk", state.autoApplyLowRisk)
+                put("theme", state.theme)
+                put("fontSize", state.fontSize)
+                put("debugMode", state.debugMode)
+                put("logLevel", state.logLevel)
+            }
+        }
+    }
+
+    /**
+     * Handle SAVE_SETTINGS - Update a single setting
+     */
+    private fun handleSaveSettings(payload: JsonObject): JsonObject {
+        val key = payload["key"]?.jsonPrimitive?.content
+            ?: return buildJsonObject {
+                put("status", "error")
+                put("error", "Missing key")
+            }
+
+        val state = ClaudeCodeSettings.getInstance().state
+        try {
+            when (key) {
+                "cliPath" -> state.cliPath = payload["value"]?.jsonPrimitive?.contentOrNull
+                "permissionMode" -> state.permissionMode = payload["value"]!!.jsonPrimitive.content
+                "autoApplyLowRisk" -> state.autoApplyLowRisk = payload["value"]!!.jsonPrimitive.boolean
+                "theme" -> state.theme = payload["value"]!!.jsonPrimitive.content
+                "fontSize" -> state.fontSize = payload["value"]!!.jsonPrimitive.int
+                "debugMode" -> state.debugMode = payload["value"]!!.jsonPrimitive.boolean
+                "logLevel" -> state.logLevel = payload["value"]!!.jsonPrimitive.content
+                else -> return buildJsonObject {
+                    put("status", "error")
+                    put("error", "Unknown setting key: $key")
+                }
+            }
+        } catch (e: Exception) {
+            return buildJsonObject {
+                put("status", "error")
+                put("error", "Invalid value for key $key: ${e.message}")
+            }
+        }
+
+        logger.info("Setting updated: $key")
         return buildJsonObject {
             put("status", "ok")
         }

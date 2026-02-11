@@ -20,9 +20,9 @@ class OpenClaudeCodeAction : AnAction() {
     }
 
     companion object {
-        fun openSession(project: Project, sessionId: String) {
+        fun openSession(project: Project, sessionId: String, initialHash: String? = null) {
             val fileEditorManager = FileEditorManager.getInstance(project)
-            val virtualFile = ClaudeCodeVirtualFile.getOrCreate(project, sessionId)
+            val virtualFile = ClaudeCodeVirtualFile.getOrCreate(project, sessionId, initialHash)
 
             // 이미 열린 세션이면 포커스만 이동, 아니면 새로 열기
             fileEditorManager.openFile(virtualFile, true)

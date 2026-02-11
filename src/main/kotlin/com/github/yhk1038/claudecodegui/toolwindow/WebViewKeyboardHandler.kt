@@ -9,10 +9,13 @@ import java.awt.event.KeyEvent
 /**
  * WebView 키보드 핸들러
  *
- * macOS에서 Cmd+Arrow, Option+Arrow 키 조합이 IDE에 의해 가로채지지 않도록
+ * 특정 키 조합이 IDE에 의해 가로채지지 않도록
  * is_keyboard_shortcut을 false로 설정하여 WebView로 키 이벤트를 전달합니다.
  *
- * 주의: 이 핸들러는 macOS에서만 등록되어야 합니다. (ClaudeCodePanel에서 플랫폼 체크)
+ * 처리하는 단축키:
+ * - macOS: Cmd+Arrow, Option+Arrow (텍스트 내비게이션)
+ * - macOS: Cmd+, (설정 열기 - IntelliJ Settings 다이얼로그 방지)
+ * - Windows/Linux: Ctrl+, (설정 열기)
  */
 class WebViewKeyboardHandler : CefKeyboardHandlerAdapter() {
 
@@ -20,14 +23,19 @@ class WebViewKeyboardHandler : CefKeyboardHandlerAdapter() {
         // CEF modifier flags (하드코딩된 정수값 - CEF API 경로 의존성 회피)
         private const val EVENTFLAG_COMMAND_DOWN = 128  // META/Command key on macOS
         private const val EVENTFLAG_ALT_DOWN = 16       // Option key on macOS
+        private const val EVENTFLAG_CONTROL_DOWN = 4    // Ctrl key
 
-        // Arrow key codes (AWT KeyEvent 상수 사용)
+        // Arrow key codes (AWT KeyEvent 상수 사용 - Windows VK code와 동일)
         private val ARROW_KEYS = setOf(
             KeyEvent.VK_LEFT,   // 37
             KeyEvent.VK_RIGHT,  // 39
             KeyEvent.VK_UP,     // 38
             KeyEvent.VK_DOWN    // 40
         )
+
+        // Comma key code (Windows VK_OEM_COMMA = 0xBC = 188)
+        // 주의: AWT KeyEvent.VK_COMMA(44)와 다름. CEF는 Windows VK code를 사용.
+        private const val VK_OEM_COMMA = 188
     }
 
     override fun onPreKeyEvent(
@@ -42,14 +50,19 @@ class WebViewKeyboardHandler : CefKeyboardHandlerAdapter() {
         val keyCode = event.windows_key_code
         val modifiers = event.modifiers
 
-        // Check if it's a text navigation shortcut (Cmd+Arrow or Option+Arrow)
         val isMetaDown = (modifiers and EVENTFLAG_COMMAND_DOWN) != 0
         val isAltDown = (modifiers and EVENTFLAG_ALT_DOWN) != 0
+        val isCtrlDown = (modifiers and EVENTFLAG_CONTROL_DOWN) != 0
         val isArrowKey = keyCode in ARROW_KEYS
 
+        // macOS: Cmd+Arrow, Option+Arrow (텍스트 내비게이션)
         if (isArrowKey && (isMetaDown || isAltDown)) {
-            // Prevent IDE from treating this as a shortcut
-            // This allows the key event to pass through to the WebView
+            is_keyboard_shortcut.set(false)
+        }
+
+        // Cmd+, (macOS) 또는 Ctrl+, (Windows/Linux) - 설정 열기
+        // IntelliJ의 ShowSettings 액션이 가로채지 않도록 WebView로 전달
+        if (keyCode == VK_OEM_COMMA && (isMetaDown || isCtrlDown)) {
             is_keyboard_shortcut.set(false)
         }
 

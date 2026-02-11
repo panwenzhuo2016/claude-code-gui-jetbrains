@@ -8,7 +8,8 @@ import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 
 class ClaudeCodeVirtualFile(
-    val sessionId: String
+    val sessionId: String,
+    val initialHash: String? = null
 ) : LightVirtualFile("Claude Code", ClaudeCodeFileType, "") {
 
     // 동적으로 변경 가능한 표시 이름
@@ -20,10 +21,10 @@ class ClaudeCodeVirtualFile(
             WeakHashMap<Project, MutableMap<String, ClaudeCodeVirtualFile>>()
         )
 
-        fun getOrCreate(project: Project, sessionId: String): ClaudeCodeVirtualFile {
+        fun getOrCreate(project: Project, sessionId: String, initialHash: String? = null): ClaudeCodeVirtualFile {
             synchronized(openSessions) {
                 val projectSessions = openSessions.getOrPut(project) { ConcurrentHashMap() }
-                return projectSessions.getOrPut(sessionId) { ClaudeCodeVirtualFile(sessionId) }
+                return projectSessions.getOrPut(sessionId) { ClaudeCodeVirtualFile(sessionId, initialHash) }
             }
         }
 

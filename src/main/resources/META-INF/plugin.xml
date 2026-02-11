@@ -73,5 +73,12 @@
             <keyboard-shortcut keymap="$default" first-keystroke="meta N"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl N"/>
         </action>
+
+        <!-- Open Settings action (only when Claude Code editor is focused) -->
+        <action
+            id="ClaudeCode.OpenSettings"
+            class="com.github.yhk1038.claudecodegui.actions.OpenClaudeCodeSettingsAction"
+            text="Open Claude Code Settings"
+            description="Open Claude Code settings in a new editor tab"/>
     </actions>
 </idea-plugin>

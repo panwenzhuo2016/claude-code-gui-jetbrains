@@ -7,7 +7,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.util.SystemInfo
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
@@ -32,7 +31,8 @@ import javax.swing.JPanel
 
 class ClaudeCodePanel(
     private val project: Project,
-    private val sessionId: String = "default"
+    private val sessionId: String = "default",
+    private val initialHash: String? = null
 ) : JPanel(BorderLayout()), Disposable {
 
     private val logger = Logger.getInstance(ClaudeCodePanel::class.java)
@@ -106,20 +106,24 @@ class ClaudeCodePanel(
             }
         }, browser.cefBrowser)
 
-        // Register keyboard handler for macOS text navigation shortcuts
-        // (Cmd+Arrow for line start/end, Option+Arrow for word navigation)
-        if (SystemInfo.isMac) {
-            browser.jbCefClient.addKeyboardHandler(
-                WebViewKeyboardHandler(),
-                browser.cefBrowser
-            )
-        }
+        // Register keyboard handler to prevent IDE from intercepting WebView shortcuts
+        // - macOS: Cmd+Arrow/Option+Arrow (텍스트 내비게이션), Cmd+, (설정)
+        // - All platforms: Cmd/Ctrl+, (설정 - IntelliJ Settings 다이얼로그 방지)
+        browser.jbCefClient.addKeyboardHandler(
+            WebViewKeyboardHandler(),
+            browser.cefBrowser
+        )
     }
 
     private fun injectBridge(frame: CefFrame) {
         val workingDir = project.basePath?.replace("\\", "\\\\")?.replace("'", "\\'") ?: ""
+        val hashJs = if (initialHash != null) {
+            val escapedHash = initialHash.replace("\\", "\\\\").replace("'", "\\'")
+            "window.location.hash = '$escapedHash';"
+        } else ""
         val js = """
             window.workingDirectory = '$workingDir';
+            $hashJs
             window.kotlinBridge = {
                 send: function(message) {
                     ${jsQuery.inject("JSON.stringify(message)")}

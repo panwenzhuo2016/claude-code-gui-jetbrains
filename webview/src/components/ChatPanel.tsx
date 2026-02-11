@@ -31,6 +31,7 @@ export function ChatPanel() {
     workingDirectory,
     setWorkingDirectory,
     openNewTab,
+    openSettings,
     createSessionWithMessage,
     switchSession,
     saveMessages,
@@ -99,6 +100,7 @@ export function ChatPanel() {
           sessionTitle={sessionTitle}
           onSelectSession={switchSession}
           onOpenNewTab={handleOpenNewTab}
+          onOpenSettings={openSettings}
         />
       </div>
 

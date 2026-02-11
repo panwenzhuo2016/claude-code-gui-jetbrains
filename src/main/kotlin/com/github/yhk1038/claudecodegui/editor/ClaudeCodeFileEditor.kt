@@ -16,7 +16,7 @@ class ClaudeCodeFileEditor(
     private val virtualFile: ClaudeCodeVirtualFile
 ) : UserDataHolderBase(), FileEditor {
 
-    private val panel: ClaudeCodePanel = ClaudeCodePanel(project, virtualFile.sessionId)
+    private val panel: ClaudeCodePanel = ClaudeCodePanel(project, virtualFile.sessionId, virtualFile.initialHash)
 
     init {
         Disposer.register(this, panel)
@@ -25,6 +25,7 @@ class ClaudeCodeFileEditor(
         panel.onTitleChanged = { title ->
             virtualFile.setDisplayName(title)
         }
+
     }
 
     override fun getComponent(): JComponent = panel

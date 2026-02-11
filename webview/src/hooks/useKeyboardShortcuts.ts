@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { getAdapter } from '@/adapters';
 
 /**
  * Hook to handle keyboard shortcuts in the WebView.
  *
  * Shortcuts:
  * - Cmd+N (Mac) / Ctrl+N (Windows/Linux): Open new tab (clicks the new tab button)
+ * - Cmd+, (Mac) / Ctrl+, (Windows/Linux): Open settings in new tab
  */
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -19,6 +21,16 @@ export function useKeyboardShortcuts() {
         if (newTabButton) {
           newTabButton.click();
         }
+      }
+
+      // Cmd+, (Mac) or Ctrl+, (Windows/Linux) - Open settings in new tab
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        e.stopPropagation();
+
+        getAdapter().openSettings().catch((error) => {
+          console.error('[useKeyboardShortcuts] Failed to open settings:', error);
+        });
       }
     };
 

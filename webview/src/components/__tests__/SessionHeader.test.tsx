@@ -21,6 +21,7 @@ const defaultProps = {
   sessionTitle: 'First Chat',
   onSelectSession: vi.fn(),
   onOpenNewTab: vi.fn(),
+  onOpenSettings: vi.fn(),
 };
 
 describe('SessionHeader', () => {

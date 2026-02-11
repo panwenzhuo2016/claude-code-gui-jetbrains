@@ -9,6 +9,7 @@ import { useInputMode } from './hooks/useInputMode';
 import { InputModeTag } from './InputModeTag';
 import { FileTag } from './FileTag';
 import { ActionButtons } from './ActionButtons';
+import { getAdapter } from '@/adapters';
 
 type SessionState = 'idle' | 'streaming' | 'waiting_permission' | 'has_diff' | 'error';
 
@@ -40,6 +41,7 @@ interface ChatInputProps {
   onInputModeChange?: (mode: InputMode) => void;
   activeFiles?: ActiveFile[];
   onFileToggle?: (path: string) => void;
+  sessionId?: string | null;
 }
 
 export function ChatInput({
@@ -69,6 +71,7 @@ export function ChatInput({
   onInputModeChange,
   activeFiles = [],
   onFileToggle,
+  sessionId,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [history, setHistory] = useState<string[]>([]);
@@ -110,6 +113,11 @@ export function ChatInput({
   } = useSlashCommandPanel({
     onClearConversation: onClear,
     onHelpDocs: onHelp,
+    onGeneralConfig: () => {
+      getAdapter().openSettings().catch((error) => {
+        console.error('[ChatInput] Failed to open settings:', error);
+      });
+    },
     currentModel,
     thinkingEnabled,
     onToggleThinking,
@@ -133,10 +141,10 @@ export function ChatInput({
     textarea.style.height = `${newHeight}px`;
   }, [value]);
 
-  // Focus on mount
+  // Focus on mount and on session change
   useEffect(() => {
     textareaRef.current?.focus();
-  }, []);
+  }, [sessionId]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Shift+Tab: 모드 전환

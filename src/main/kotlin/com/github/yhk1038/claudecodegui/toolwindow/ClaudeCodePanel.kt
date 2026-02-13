@@ -42,6 +42,7 @@ class ClaudeCodePanel(
 
     private val browser: JBCefBrowser = JBCefBrowser()
     private val jsQuery: JBCefJSQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
+    private val cursorQuery: JBCefJSQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
 
     // 제목 변경 콜백 (FileEditor에서 설정)
     var onTitleChanged: ((String) -> Unit)? = null
@@ -70,6 +71,28 @@ class ClaudeCodePanel(
         jsQuery.addHandler { request: String ->
             handleMessage(request)
             // Return null response - actual responses are sent via executeJavaScript
+            JBCefJSQuery.Response(null)
+        }
+
+        // Handle CSS cursor changes from WebView
+        cursorQuery.addHandler { cursorName: String ->
+            val javaCursorType = when (cursorName) {
+                "text" -> java.awt.Cursor.TEXT_CURSOR
+                "pointer" -> java.awt.Cursor.HAND_CURSOR
+                "move" -> java.awt.Cursor.MOVE_CURSOR
+                "crosshair" -> java.awt.Cursor.CROSSHAIR_CURSOR
+                "wait" -> java.awt.Cursor.WAIT_CURSOR
+                "grab", "grabbing" -> java.awt.Cursor.MOVE_CURSOR
+                "col-resize", "e-resize", "w-resize", "ew-resize" -> java.awt.Cursor.E_RESIZE_CURSOR
+                "row-resize", "n-resize", "s-resize", "ns-resize" -> java.awt.Cursor.N_RESIZE_CURSOR
+                "nw-resize", "se-resize", "nwse-resize" -> java.awt.Cursor.NW_RESIZE_CURSOR
+                "ne-resize", "sw-resize", "nesw-resize" -> java.awt.Cursor.NE_RESIZE_CURSOR
+                "not-allowed", "no-drop" -> java.awt.Cursor.DEFAULT_CURSOR
+                else -> java.awt.Cursor.DEFAULT_CURSOR
+            }
+            javax.swing.SwingUtilities.invokeLater {
+                browser.component.cursor = java.awt.Cursor.getPredefinedCursor(javaCursorType)
+            }
             JBCefJSQuery.Response(null)
         }
 
@@ -194,6 +217,16 @@ class ClaudeCodePanel(
                 window.dispatchEvent(new CustomEvent('kotlinMessage', { detail: message }));
             };
             window.dispatchEvent(new Event('kotlinBridgeReady'));
+            (function() {
+                var lastCursor = '';
+                document.addEventListener('mouseover', function(e) {
+                    var cursor = window.getComputedStyle(e.target).cursor;
+                    if (cursor !== lastCursor) {
+                        lastCursor = cursor;
+                        ${cursorQuery.inject("cursor")}
+                    }
+                }, true);
+            })();
         """.trimIndent()
         frame.executeJavaScript(js, frame.url, 0)
     }
@@ -380,6 +413,7 @@ class ClaudeCodePanel(
     override fun dispose() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         webViewBridge.dispose()
+        Disposer.dispose(cursorQuery)
         Disposer.dispose(jsQuery)
         Disposer.dispose(browser)
         logger.info("ClaudeCodePanel disposed")

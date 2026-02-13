@@ -189,7 +189,7 @@ export function ChatInput({
             placeholder={placeholder}
             disabled={disabled || isStreaming}
             rows={1}
-            className="w-full px-3 resize-none bg-transparent text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none disabled:opacity-50"
+            className="w-full px-3 cursor-text resize-none bg-transparent text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none disabled:opacity-50"
             style={{ minHeight: '20px', maxHeight: '200px' }}
           />
         </div>

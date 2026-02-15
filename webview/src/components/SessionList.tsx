@@ -23,7 +23,7 @@ export function SessionList({
   // Get last user message from current messages for preview
   const getLastMessage = (sessionId: string): string | undefined => {
     if (sessionId !== currentSessionId) return undefined;
-    const userMessages = messages.filter(m => m.role === 'user');
+    const userMessages = messages.filter(m => m.type === 'user');
     if (userMessages.length === 0) return undefined;
     return getTextContent(userMessages[userMessages.length - 1]);
   };

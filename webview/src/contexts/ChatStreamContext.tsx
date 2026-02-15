@@ -1,14 +1,14 @@
 import { createContext, useContext, ReactNode, useEffect, useCallback, useState, useRef } from 'react';
-import { useChatStream, LoadedMessage } from '../hooks/useChatStream';
+import { useChatStream } from '../hooks/useChatStream';
 import { useDiffs } from '../hooks/useDiffs';
 import { useTools } from '../hooks/useTools';
 import { useBridgeContext } from './BridgeContext';
 import { useSessionContext } from './SessionContext';
-import { Message, Context } from '../types';
+import { LoadedMessageDto, Context } from '../types';
 
 interface ChatStreamContextType {
   // From useChatStream
-  messages: Message[];
+  messages: LoadedMessageDto[];
   isStreaming: boolean;
   isStopped: boolean;
   streamingMessageId: string | null;
@@ -27,9 +27,9 @@ interface ChatStreamContextType {
 
   // From useChatStream (message manipulation)
   clearMessages: () => void;
-  loadMessages: (msgs: LoadedMessage[]) => void;
-  appendMessage: (message: Message) => void;
-  updateMessage: (id: string, updates: Partial<Message>) => void;
+  loadMessages: (msgs: LoadedMessageDto[]) => void;
+  appendMessage: (message: LoadedMessageDto) => void;
+  updateMessage: (id: string, updates: Partial<LoadedMessageDto>) => void;
 
   // Subsystems (preserved)
   tools: ReturnType<typeof useTools>;

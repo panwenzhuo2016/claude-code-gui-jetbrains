@@ -4,10 +4,10 @@ import { ApiProvider, useApiContext } from './ApiContext';
 import { SessionProvider, useSessionContext } from './SessionContext';
 import { ChatStreamProvider, useChatStreamContext } from './ChatStreamContext';
 import { ThemeProvider } from './ThemeContext';
-import { getTextContent, isContentBlockArray } from '../types';
 import { Router } from '../router';
 import { SettingsProvider } from './SettingsContext';
 import { ChatInputFocusProvider } from './ChatInputFocusContext';
+import type { LoadedMessageDto } from '../types';
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -30,36 +30,13 @@ function SessionLoader({ children }: { children: ReactNode }) {
   }, [isConnected, loadSessions]);
 
   // Subscribe to SESSION_LOADED to load messages into chat
-  // Now handles both legacy string content and new ContentBlock array
+  // Raw JSONL entries are passed through - transformation is handled by useChatStream.loadMessages()
   useEffect(() => {
     return subscribe('SESSION_LOADED', (message) => {
       if (message.payload?.messages) {
-        const rawMessages = message.payload.messages as Array<{
-          type?: string;
-          role?: 'user' | 'assistant';
-          content: string | unknown[];
-          timestamp: string;
-        }>;
-
-        // Transform messages to support both formats
-        const messages = rawMessages.map((msg) => {
-          const role = msg.role || (msg.type === 'assistant' ? 'assistant' : 'user');
-          // Extract text content if it's a ContentBlock array
-          const content = isContentBlockArray(msg.content)
-            ? getTextContent({ content: msg.content } as any)
-            : (msg.content as string);
-
-          return {
-            role: role as 'user' | 'assistant',
-            content,
-            timestamp: msg.timestamp,
-            // Preserve original content for advanced rendering
-            originalContent: msg.content,
-          };
-        });
-
-        console.log('[AppProviders] Session loaded, injecting messages:', messages.length);
-        loadMessages(messages);
+        const rawMessages = message.payload.messages as LoadedMessageDto[];
+        console.log('[AppProviders] Session loaded, injecting raw messages:', rawMessages.length, rawMessages);
+        loadMessages(rawMessages);
       }
     });
   }, [subscribe, loadMessages]);

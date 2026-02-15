@@ -6,8 +6,8 @@ import type { Message, ToolUse } from '../../types';
 // Mock child components
 vi.mock('../MessageBubble', () => ({
   MessageBubble: ({ message }: { message: Message }) => (
-    <div data-testid={`message-bubble-${message.id}`}>
-      {message.role}: {typeof message.content === 'string' ? message.content : 'complex content'}
+    <div data-testid={`message-bubble-${message.uuid}`}>
+      {message.type}: {typeof message.message?.content === 'string' ? message.message.content : 'complex content'}
     </div>
   ),
 }));
@@ -92,10 +92,10 @@ describe('ChatMessageArea', () => {
 
   it('renders user message correctly', () => {
     const userMessage: Message = {
-      id: 'msg1',
-      role: 'user',
-      content: 'Hello, assistant!',
-      timestamp: Date.now(),
+      uuid: 'msg1',
+      type: 'user',
+      message: { role: 'user', content: 'Hello, assistant!' },
+      timestamp: new Date().toISOString(),
     };
 
     render(
@@ -116,10 +116,10 @@ describe('ChatMessageArea', () => {
 
   it('renders assistant message correctly', () => {
     const assistantMessage: Message = {
-      id: 'msg2',
-      role: 'assistant',
-      content: 'Hello, user!',
-      timestamp: Date.now(),
+      uuid: 'msg2',
+      type: 'assistant',
+      message: { role: 'assistant', content: 'Hello, user!' },
+      timestamp: new Date().toISOString(),
     };
 
     render(
@@ -138,20 +138,18 @@ describe('ChatMessageArea', () => {
     expect(screen.getByText('assistant: Hello, user!')).toBeInTheDocument();
   });
 
-  it('renders ToolCard for messages with toolUses', () => {
-    const toolUse: ToolUse = {
-      id: 'tool1',
-      name: 'read_file',
-      input: { path: '/test.txt' },
-      status: 'pending',
-    };
-
+  it('renders ToolCard for messages with toolUses in content blocks', () => {
     const messageWithTool: Message = {
-      id: 'msg3',
-      role: 'assistant',
-      content: 'I need to read a file',
-      timestamp: Date.now(),
-      toolUses: [toolUse],
+      uuid: 'msg3',
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'I need to read a file' },
+          { type: 'tool_use', id: 'tool1', name: 'read_file', input: { path: '/test.txt' } },
+        ] as any,
+      },
+      timestamp: new Date().toISOString(),
     };
 
     render(
@@ -168,28 +166,29 @@ describe('ChatMessageArea', () => {
 
     expect(screen.getByTestId('message-bubble-msg3')).toBeInTheDocument();
     expect(screen.getByTestId('tool-card-tool1')).toBeInTheDocument();
-    expect(screen.getByText('Tool: read_file - Status: pending')).toBeInTheDocument();
+    expect(screen.getByText('Tool: read_file - Status: completed')).toBeInTheDocument();
   });
 
   it('renders multiple messages correctly', () => {
+    const now = new Date().toISOString();
     const messages: Message[] = [
       {
-        id: 'msg1',
-        role: 'user',
-        content: 'First message',
-        timestamp: Date.now(),
+        uuid: 'msg1',
+        type: 'user',
+        message: { role: 'user', content: 'First message' },
+        timestamp: now,
       },
       {
-        id: 'msg2',
-        role: 'assistant',
-        content: 'Second message',
-        timestamp: Date.now(),
+        uuid: 'msg2',
+        type: 'assistant',
+        message: { role: 'assistant', content: 'Second message' },
+        timestamp: now,
       },
       {
-        id: 'msg3',
-        role: 'user',
-        content: 'Third message',
-        timestamp: Date.now(),
+        uuid: 'msg3',
+        type: 'user',
+        message: { role: 'user', content: 'Third message' },
+        timestamp: now,
       },
     ];
 
@@ -214,27 +213,18 @@ describe('ChatMessageArea', () => {
   });
 
   it('renders multiple tool uses for a single message', () => {
-    const toolUses: ToolUse[] = [
-      {
-        id: 'tool1',
-        name: 'read_file',
-        input: { path: '/test1.txt' },
-        status: 'completed',
-      },
-      {
-        id: 'tool2',
-        name: 'write_file',
-        input: { path: '/test2.txt' },
-        status: 'pending',
-      },
-    ];
-
     const messageWithTools: Message = {
-      id: 'msg4',
-      role: 'assistant',
-      content: 'Using multiple tools',
-      timestamp: Date.now(),
-      toolUses,
+      uuid: 'msg4',
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Using multiple tools' },
+          { type: 'tool_use', id: 'tool1', name: 'read_file', input: { path: '/test1.txt' } },
+          { type: 'tool_use', id: 'tool2', name: 'write_file', input: { path: '/test2.txt' } },
+        ] as any,
+      },
+      timestamp: new Date().toISOString(),
     };
 
     render(
@@ -252,6 +242,6 @@ describe('ChatMessageArea', () => {
     expect(screen.getByTestId('tool-card-tool1')).toBeInTheDocument();
     expect(screen.getByTestId('tool-card-tool2')).toBeInTheDocument();
     expect(screen.getByText('Tool: read_file - Status: completed')).toBeInTheDocument();
-    expect(screen.getByText('Tool: write_file - Status: pending')).toBeInTheDocument();
+    expect(screen.getByText('Tool: write_file - Status: completed')).toBeInTheDocument();
   });
 });

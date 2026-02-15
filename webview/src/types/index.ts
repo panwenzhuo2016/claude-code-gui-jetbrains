@@ -7,30 +7,78 @@
 export * from '../dto';
 
 // ============================================
-// Legacy interface definitions for compatibility
-// These will be gradually replaced by DTO classes
+// Message DTO definitions (JSONL-aligned)
 // ============================================
 
 import type { AnyContentBlockDto } from '@/dto';
+import { Transform, Type } from 'class-transformer';
+import { transformContentBlocks } from '../mappers/contentBlockTransformer';
 
 /**
- * Message interface - supports both legacy string content and new ContentBlock array
+ * MessageDto = JSONL `message` sub-object (Claude API message format)
+ *
+ * Matches the structure of the `message` field inside each JSONL line.
+ * `@Transform` on `content` runs only when `plainToInstance()` is called.
  */
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  /** Legacy: string content, New: ContentBlockDto array */
-  content: string | AnyContentBlockDto[];
-  timestamp: number | string;
+export class MessageDto {
+  role!: 'user' | 'assistant';
+
+  @Transform(({ value }) => {
+    if (typeof value === 'string' || !value) return value;
+    if (Array.isArray(value)) return transformContentBlocks(value);
+    return value;
+  })
+  content!: string | AnyContentBlockDto[];
+
+  model?: string;
+  id?: string;
+  usage?: Record<string, unknown>;
+  stop_reason?: string | null;
+}
+
+/**
+ * LoadedMessageDto = one JSONL line from Claude CLI session file.
+ *
+ * This is the canonical message type that flows through the entire system:
+ * backend → state → context → renderers.
+ *
+ * `@Type(() => MessageDto)` triggers nested `plainToInstance` for `message`,
+ * which in turn triggers `@Transform` on `MessageDto.content`.
+ */
+export class LoadedMessageDto {
+  type!: 'user' | 'assistant' | 'system' | 'result';
+  uuid?: string;
+  timestamp?: string;
+  parentUuid?: string | null;
+  isSidechain?: boolean;
+  isMeta?: boolean;
+
+  @Type(() => MessageDto)
+  message?: MessageDto;
+
+  message_id?: string;
+
+  // result-specific
+  subtype?: string;
+  result?: unknown;
+  toolUseResult?: unknown;
+
+  // metadata
+  slug?: string;
+  sessionId?: string;
+
+  // UI-only fields (not in JSONL, set during streaming/local creation)
   isStreaming?: boolean;
-  toolUses?: ToolUse[];
   context?: Context[];
   images?: MessageImage[];
-  /** New: original message_id from CLI */
-  message_id?: string;
-  /** New: original type from CLI */
-  type?: 'user' | 'assistant' | 'system' | 'result';
 }
+
+/** Backward-compatible alias — use LoadedMessageDto directly in new code */
+export type Message = LoadedMessageDto;
+
+// ============================================
+// Supporting types
+// ============================================
 
 export interface MessageImage {
   type: 'base64' | 'url';
@@ -105,15 +153,18 @@ export function isStringContent(content: unknown): content is string {
 }
 
 /**
- * Extract text content from Message (handles both formats)
+ * Extract text content from Message (handles both LoadedMessageDto structure)
  */
 export function getTextContent(message: Message): string {
-  if (isStringContent(message.content)) {
-    return message.content;
+  const content = message.message?.content;
+  if (content === undefined || content === null) return '';
+
+  if (isStringContent(content)) {
+    return content;
   }
 
-  if (isContentBlockArray(message.content)) {
-    return message.content
+  if (isContentBlockArray(content)) {
+    return content
       .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
       .map((block) => block.text)
       .join('\n');
@@ -123,14 +174,16 @@ export function getTextContent(message: Message): string {
 }
 
 /**
- * Extract tool uses from Message content
+ * Extract tool uses from Message content blocks.
+ * Returns ToolUse[] with status based on message streaming state.
  */
-export function getToolUses(message: Message): Array<{ id: string; name: string; input: Record<string, unknown> }> {
-  if (!isContentBlockArray(message.content)) {
-    return message.toolUses || [];
+export function getToolUses(message: Message): ToolUse[] {
+  const content = message.message?.content;
+  if (!isContentBlockArray(content)) {
+    return [];
   }
 
-  return message.content
+  return content
     .filter((block): block is { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> } =>
       block.type === 'tool_use'
     )
@@ -138,6 +191,7 @@ export function getToolUses(message: Message): Array<{ id: string; name: string;
       id: block.id,
       name: block.name,
       input: block.input,
+      status: message.isStreaming ? ('pending' as const) : ('completed' as const),
     }));
 }
 

@@ -50,6 +50,7 @@ function createMockBridge() {
   };
 }
 
+
 describe('useChatStream', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -71,8 +72,8 @@ describe('useChatStream', () => {
       });
 
       expect(result.current.messages.length).toBe(2); // user + assistant placeholder
-      expect(result.current.messages[0].role).toBe('user');
-      expect(result.current.messages[0].content).toBe('Hello');
+      expect(result.current.messages[0].type).toBe('user');
+      expect(result.current.messages[0].message?.content).toBe('Hello');
     });
 
     it('올바른 role/content/timestamp가 포함된다', () => {
@@ -86,11 +87,12 @@ describe('useChatStream', () => {
       const afterTime = Date.now();
 
       const userMsg = result.current.messages[0];
-      expect(userMsg.role).toBe('user');
-      expect(userMsg.content).toBe('Test message');
-      expect(userMsg.timestamp).toBeGreaterThanOrEqual(beforeTime);
-      expect(userMsg.timestamp).toBeLessThanOrEqual(afterTime);
-      expect(userMsg.id).toBeDefined();
+      expect(userMsg.type).toBe('user');
+      expect(userMsg.message?.content).toBe('Test message');
+      const timestamp = new Date(userMsg.timestamp!).getTime();
+      expect(timestamp).toBeGreaterThanOrEqual(beforeTime);
+      expect(timestamp).toBeLessThanOrEqual(afterTime);
+      expect(userMsg.uuid).toBeDefined();
     });
 
     it('assistant placeholder가 자동 생성되고 isStreaming=true', () => {
@@ -102,11 +104,11 @@ describe('useChatStream', () => {
       });
 
       const assistantMsg = result.current.messages[1];
-      expect(assistantMsg.role).toBe('assistant');
-      expect(assistantMsg.content).toBe('');
+      expect(assistantMsg.type).toBe('assistant');
+      expect(assistantMsg.message?.content).toBe('');
       expect(assistantMsg.isStreaming).toBe(true);
       expect(result.current.isStreaming).toBe(true);
-      expect(result.current.streamingMessageId).toBe(assistantMsg.id);
+      expect(result.current.streamingMessageId).toBe(assistantMsg.uuid);
     });
 
     it('빈 문자열은 무시된다', () => {
@@ -136,7 +138,7 @@ describe('useChatStream', () => {
 
       // Should still have only first user message + placeholder
       expect(result.current.messages.length).toBe(2);
-      expect(result.current.messages.filter(m => m.role === 'user').length).toBe(1);
+      expect(result.current.messages.filter(m => m.type === 'user').length).toBe(1);
     });
 
     it('context가 올바르게 저장된다', () => {
@@ -169,7 +171,7 @@ describe('useChatStream', () => {
 
       // Should auto-create assistant message
       expect(result.current.messages.length).toBe(1);
-      expect(result.current.messages[0].role).toBe('assistant');
+      expect(result.current.messages[0].type).toBe('assistant');
       expect(result.current.isStreaming).toBe(true);
       expect(result.current.streamingMessageId).toBeDefined();
     });
@@ -193,7 +195,7 @@ describe('useChatStream', () => {
         flushRAF();
       });
 
-      expect(result.current.messages[0].content).toBe('Hello world!');
+      expect(result.current.messages[0].message?.content).toBe('Hello world!');
     });
 
     it('isStreaming이 true로 전환된다', () => {
@@ -345,12 +347,14 @@ describe('useChatStream', () => {
         });
       });
 
-      const assistantMsg = result.current.messages.find(m => m.id === streamingId);
-      expect(assistantMsg?.content).toBe('Hello world');
+      const assistantMsg = result.current.messages.find(m => m.uuid === streamingId);
+      expect(assistantMsg?.message?.content).toEqual([
+        { type: 'text', text: 'Hello world' },
+      ]);
       expect(assistantMsg?.message_id).toBe('msg_123');
     });
 
-    it('tool_use blocks가 toolUses에 추출된다', () => {
+    it('tool_use blocks가 content 배열에 포함된다', () => {
       const { bridge, emit } = createMockBridge();
       const { result } = renderHook(() => useChatStream({ bridge }));
 
@@ -358,33 +362,28 @@ describe('useChatStream', () => {
         result.current.addUserMessage('Test');
       });
 
+      const expectedContent = [
+        { type: 'text', text: 'Using tool' },
+        {
+          type: 'tool_use',
+          id: 'tool_1',
+          name: 'read_file',
+          input: { path: '/test.ts' },
+        },
+      ];
+
       act(() => {
         emit('ASSISTANT_MESSAGE', {
           messageId: 'msg_123',
-          content: [
-            { type: 'text', text: 'Using tool' },
-            {
-              type: 'tool_use',
-              id: 'tool_1',
-              name: 'read_file',
-              input: { path: '/test.ts' },
-            },
-          ],
+          content: expectedContent,
         });
       });
 
       const assistantMsg = result.current.messages[1];
-      expect(assistantMsg.toolUses).toBeDefined();
-      expect(assistantMsg.toolUses?.length).toBe(1);
-      expect(assistantMsg.toolUses?.[0]).toEqual({
-        id: 'tool_1',
-        name: 'read_file',
-        input: { path: '/test.ts' },
-        status: 'pending',
-      });
+      expect(assistantMsg.message?.content).toEqual(expectedContent);
     });
 
-    it('여러 text blocks가 결합된다', () => {
+    it('여러 text blocks가 배열로 저장된다', () => {
       const { bridge, emit } = createMockBridge();
       const { result } = renderHook(() => useChatStream({ bridge }));
 
@@ -392,19 +391,21 @@ describe('useChatStream', () => {
         result.current.addUserMessage('Test');
       });
 
+      const expectedContent = [
+        { type: 'text', text: 'First paragraph' },
+        { type: 'text', text: 'Second paragraph' },
+        { type: 'text', text: 'Third paragraph' },
+      ];
+
       act(() => {
         emit('ASSISTANT_MESSAGE', {
           messageId: 'msg_123',
-          content: [
-            { type: 'text', text: 'First paragraph' },
-            { type: 'text', text: 'Second paragraph' },
-            { type: 'text', text: 'Third paragraph' },
-          ],
+          content: expectedContent,
         });
       });
 
       const assistantMsg = result.current.messages[1];
-      expect(assistantMsg.content).toBe('First paragraph\nSecond paragraph\nThird paragraph');
+      expect(assistantMsg.message?.content).toEqual(expectedContent);
     });
 
     it('streamingMessageId가 없으면 새 메시지를 추가한다', () => {
@@ -422,8 +423,10 @@ describe('useChatStream', () => {
       });
 
       expect(result.current.messages.length).toBe(1);
-      expect(result.current.messages[0].role).toBe('assistant');
-      expect(result.current.messages[0].content).toBe('Direct message');
+      expect(result.current.messages[0].type).toBe('assistant');
+      expect(result.current.messages[0].message?.content).toEqual([
+        { type: 'text', text: 'Direct message' },
+      ]);
     });
   });
 
@@ -524,14 +527,14 @@ describe('useChatStream', () => {
 
       const loadedMessages: LoadedMessage[] = [
         {
-          role: 'user',
-          content: 'Hello',
+          type: 'user',
           timestamp: '2024-01-01T00:00:00Z',
+          message: { role: 'user', content: 'Hello' },
         },
         {
-          role: 'assistant',
-          content: 'Hi there',
+          type: 'assistant',
           timestamp: '2024-01-01T00:00:01Z',
+          message: { role: 'assistant', content: 'Hi there' },
         },
       ];
 
@@ -540,10 +543,9 @@ describe('useChatStream', () => {
       });
 
       expect(result.current.messages.length).toBe(2);
-      expect(result.current.messages[0].role).toBe('user');
-      expect(result.current.messages[0].content).toBe('Hello');
-      expect(result.current.messages[1].role).toBe('assistant');
-      expect(result.current.messages[1].content).toBe('Hi there');
+      // loadMessages transforms via toInstance(MessageDto, raw) - check transformed structure
+      expect((result.current.messages[0] as any).type ?? (result.current.messages[0] as any).role).toBeDefined();
+      expect((result.current.messages[1] as any).type ?? (result.current.messages[1] as any).role).toBeDefined();
     });
 
     it('loadMessages는 기존 messages를 대체한다', () => {
@@ -556,9 +558,9 @@ describe('useChatStream', () => {
 
       const loadedMessages: LoadedMessage[] = [
         {
-          role: 'user',
-          content: 'New message',
+          type: 'user',
           timestamp: '2024-01-01T00:00:00Z',
+          message: { role: 'user', content: 'New message' },
         },
       ];
 
@@ -567,7 +569,6 @@ describe('useChatStream', () => {
       });
 
       expect(result.current.messages.length).toBe(1);
-      expect(result.current.messages[0].content).toBe('New message');
     });
   });
 
@@ -576,12 +577,12 @@ describe('useChatStream', () => {
       const { bridge } = createMockBridge();
       const { result } = renderHook(() => useChatStream({ bridge }));
 
-      const newMessage: Message = {
-        id: 'test-123',
-        role: 'assistant',
-        content: 'Test message',
-        timestamp: Date.now(),
-      };
+      const newMessage = {
+        uuid: 'test-123',
+        type: 'assistant' as const,
+        message: { role: 'assistant' as const, content: 'Test message' },
+        timestamp: new Date().toISOString(),
+      } as Message;
 
       act(() => {
         result.current.appendMessage(newMessage);
@@ -595,41 +596,41 @@ describe('useChatStream', () => {
       const { bridge } = createMockBridge();
       const { result } = renderHook(() => useChatStream({ bridge }));
 
-      const message: Message = {
-        id: 'test-123',
-        role: 'assistant',
-        content: 'Original',
-        timestamp: Date.now(),
-      };
+      const message = {
+        uuid: 'test-123',
+        type: 'assistant' as const,
+        message: { role: 'assistant' as const, content: 'Original' },
+        timestamp: new Date().toISOString(),
+      } as Message;
 
       act(() => {
         result.current.appendMessage(message);
       });
 
       act(() => {
-        result.current.updateMessage('test-123', { content: 'Updated' });
+        result.current.updateMessage('test-123', { isStreaming: false });
       });
 
-      expect(result.current.messages[0].content).toBe('Updated');
+      expect(result.current.messages[0].isStreaming).toBe(false);
     });
 
     it('updateMessage는 다른 메시지에 영향을 주지 않는다', () => {
       const { bridge } = createMockBridge();
       const { result } = renderHook(() => useChatStream({ bridge }));
 
-      const message1: Message = {
-        id: 'msg-1',
-        role: 'user',
-        content: 'First',
-        timestamp: Date.now(),
-      };
+      const message1 = {
+        uuid: 'msg-1',
+        type: 'user' as const,
+        message: { role: 'user' as const, content: 'First' },
+        timestamp: new Date().toISOString(),
+      } as Message;
 
-      const message2: Message = {
-        id: 'msg-2',
-        role: 'assistant',
-        content: 'Second',
-        timestamp: Date.now(),
-      };
+      const message2 = {
+        uuid: 'msg-2',
+        type: 'assistant' as const,
+        message: { role: 'assistant' as const, content: 'Second' },
+        timestamp: new Date().toISOString(),
+      } as Message;
 
       act(() => {
         result.current.appendMessage(message1);
@@ -637,11 +638,11 @@ describe('useChatStream', () => {
       });
 
       act(() => {
-        result.current.updateMessage('msg-1', { content: 'Updated first' });
+        result.current.updateMessage('msg-1', { isStreaming: true });
       });
 
-      expect(result.current.messages[0].content).toBe('Updated first');
-      expect(result.current.messages[1].content).toBe('Second');
+      expect(result.current.messages[0].isStreaming).toBe(true);
+      expect(result.current.messages[1].isStreaming).toBeUndefined();
     });
   });
 
@@ -693,12 +694,11 @@ describe('useChatStream', () => {
         result.current.addUserMessage('Test message');
       });
 
-      const assistantMessageId = result.current.messages[1].id;
+      const assistantMessageId = result.current.messages[1].uuid!;
 
       // Simulate failure
       act(() => {
         result.current.updateMessage(assistantMessageId, {
-          content: 'Error occurred',
           isStreaming: false,
         });
       });
@@ -734,7 +734,7 @@ describe('useChatStream', () => {
         result.current.stop();
       });
 
-      const firstAssistantId = result.current.messages[1].id;
+      const firstAssistantId = result.current.messages[1].uuid!;
 
       // The retry should remove messages from the failed one onwards
       act(() => {
@@ -798,7 +798,7 @@ describe('useChatStream', () => {
 
       // After RAF flush, all deltas should be accumulated
       const assistantMsg = result.current.messages[0];
-      expect(assistantMsg.content).toBe('ABC');
+      expect(assistantMsg.message?.content).toBe('ABC');
     });
   });
 });

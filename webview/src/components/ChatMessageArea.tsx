@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { Message } from '@/types';
+import {getToolUses, LoadedMessageDto} from '../types';
 import { MessageBubble } from './MessageBubble';
 import { ToolCard } from './ToolCard';
 import { ProjectSelector } from './ProjectSelector';
 
 interface ChatMessageAreaProps {
-  messages: Message[];
+  messages: LoadedMessageDto[];
   streamingMessageId: string | null;
   workingDirectory: string | null;
   onSelectProject: (path: string) => void;
@@ -31,7 +31,7 @@ export function ChatMessageArea({
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages.length, messages[messages.length - 1]?.content]);
+  }, [messages.length, messages[messages.length - 1]?.message?.content]);
 
   const isEmpty = messages.length === 0;
 
@@ -61,19 +61,22 @@ export function ChatMessageArea({
   return (
     <div ref={containerRef} className="max-w-4xl mx-auto text-xs">
       {messages.map((message) => (
-        <div key={message.id} onClick={() => console.log('message', message.id, message)}>
+        <div key={message.uuid} onClick={() => console.log('message', message.uuid, message)}>
           <MessageBubble message={message} onRetry={onRetry} />
 
           {/* Show tool cards for this message */}
-          {message.toolUses?.map((toolUse) => (
-            <div key={toolUse.id} className="px-6">
-              <ToolCard
-                toolUse={toolUse}
-                onApprove={approveToolUse}
-                onDeny={denyToolUse}
-              />
-            </div>
-          ))}
+          {(() => {
+            const toolUses = getToolUses(message);
+            return toolUses.length > 0 ? toolUses.map((toolUse) => (
+              <div key={toolUse.id} className="px-6">
+                <ToolCard
+                  toolUse={toolUse}
+                  onApprove={approveToolUse}
+                  onDeny={denyToolUse}
+                />
+              </div>
+            )) : null;
+          })()}
         </div>
       ))}
       <div ref={messagesEndRef} />

@@ -42,8 +42,8 @@ export function ChatPanel() {
 
   // Auto-save messages when they change (debounced in useSession)
   const lastMessage = messages[messages.length - 1];
-  const lastMessageContent = lastMessage?.content;
-  const lastMessageId = lastMessage?.id;
+  const lastMessageContent = lastMessage?.message?.content;
+  const lastMessageId = lastMessage?.uuid;
 
   useEffect(() => {
     if (currentSessionId && messages.length > 0 && !isStreaming) {

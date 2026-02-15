@@ -56,8 +56,8 @@ export const StreamingExample: React.FC = () => {
       {/* Messages */}
       <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
         {messages.map((msg) => (
-          <div key={msg.id} style={{ marginBottom: '1rem' }}>
-            <strong>{msg.role}:</strong> {typeof msg.content === 'string' ? msg.content : '[ContentBlocks]'}
+          <div key={msg.uuid} style={{ marginBottom: '1rem' }}>
+            <strong>{msg.type}:</strong> {typeof msg.message?.content === 'string' ? msg.message.content : '[ContentBlocks]'}
             {msg.isStreaming && <span> (streaming...)</span>}
           </div>
         ))}
@@ -90,16 +90,16 @@ export const StreamingExample: React.FC = () => {
 export const mockStreamingData = {
   messages: [
     {
-      id: 'msg-1',
-      role: 'user' as const,
-      content: 'Hello! Can you explain React hooks?',
-      timestamp: Date.now() - 60000,
+      type: 'user' as const,
+      uuid: 'msg-1',
+      timestamp: new Date(Date.now() - 60000).toISOString(),
+      message: { role: 'user' as const, content: 'Hello! Can you explain React hooks?' },
     },
     {
-      id: 'msg-2',
-      role: 'assistant' as const,
-      content: '# React Hooks\n\nReact Hooks are functions...',
-      timestamp: Date.now() - 59000,
+      type: 'assistant' as const,
+      uuid: 'msg-2',
+      timestamp: new Date(Date.now() - 59000).toISOString(),
+      message: { role: 'assistant' as const, content: '# React Hooks\n\nReact Hooks are functions...' },
       isStreaming: false,
     },
   ],

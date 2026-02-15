@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Message, getTextContent } from '../types';
+import { Message, getTextContent, getToolUses } from '../types';
 import { StreamingMessage } from './StreamingMessage';
 
 interface MessageListProps {
@@ -39,7 +39,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     let currentGroup: MessageGroup | null = null;
 
     messages.forEach((message) => {
-      const timestampNum = typeof message.timestamp === 'string' ? new Date(message.timestamp).getTime() : message.timestamp;
+      const timestampNum = typeof message.timestamp === 'string' ? new Date(message.timestamp).getTime() : (message.timestamp ?? Date.now());
       const date = formatDate(timestampNum);
 
       if (!currentGroup || currentGroup.date !== date) {
@@ -128,14 +128,14 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   // Render a single message
   const renderMessage = useCallback((message: Message) => {
-    const isStreaming = message.id === streamingMessageId;
-    const isAssistant = message.role === 'assistant';
-    const isUser = message.role === 'user';
+    const isStreaming = message.uuid === streamingMessageId;
+    const isAssistant = message.type === 'assistant';
+    const isUser = message.type === 'user';
 
     return (
       <div
-        key={message.id}
-        className={`message ${message.role} ${isStreaming ? 'streaming' : ''}`}
+        key={message.uuid}
+        className={`message ${message.type} ${isStreaming ? 'streaming' : ''}`}
       >
         <div className="message-header">
           <div className="message-role">
@@ -146,17 +146,17 @@ export const MessageList: React.FC<MessageListProps> = ({
             ) : (
               <span className="role-icon system-icon">ℹ️</span>
             )}
-            <span className="role-text">{capitalizeFirst(message.role)}</span>
+            <span className="role-text">{capitalizeFirst(message.type)}</span>
           </div>
           <div className="message-timestamp">
-            {formatTime(typeof message.timestamp === 'string' ? new Date(message.timestamp).getTime() : message.timestamp)}
+            {formatTime(typeof message.timestamp === 'string' ? new Date(message.timestamp).getTime() : (message.timestamp as any))}
           </div>
         </div>
 
         <div className="message-content">
           {isAssistant ? (
             <StreamingMessage
-              content={typeof message.content === 'string' ? message.content : getTextContent(message)}
+              content={getTextContent(message)}
               isStreaming={isStreaming}
             />
           ) : (
@@ -177,16 +177,19 @@ export const MessageList: React.FC<MessageListProps> = ({
             </div>
           )}
 
-          {message.toolUses && message.toolUses.length > 0 && (
-            <div className="tool-uses">
-              {message.toolUses.map((tool) => (
-                <div key={tool.id} className={`tool-use ${tool.status}`}>
-                  <div className="tool-name">{tool.name}</div>
-                  <div className="tool-status">{tool.status}</div>
-                </div>
-              ))}
-            </div>
-          )}
+          {(() => {
+            const toolUses = getToolUses(message);
+            return toolUses.length > 0 ? (
+              <div className="tool-uses">
+                {toolUses.map((tool) => (
+                  <div key={tool.id} className={`tool-use ${tool.status}`}>
+                    <div className="tool-name">{tool.name}</div>
+                    <div className="tool-status">{tool.status}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null;
+          })()}
         </div>
 
         <div className="message-actions">
@@ -201,7 +204,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               </button>
               <button
                 className="action-btn retry-btn"
-                onClick={() => handleRetry(message.id)}
+                onClick={() => handleRetry(message.uuid!)}
                 title="Retry"
               >
                 🔄

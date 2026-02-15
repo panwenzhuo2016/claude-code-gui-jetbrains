@@ -1,17 +1,9 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Message, Context, getTextContent } from '../types';
+import { Message, Context, getTextContent, LoadedMessageDto } from '../types';
+import { toInstance } from '../dto/common';
 
-/**
- * useChat.ts의 loadMessages 파라미터 타입을 정식 정의.
- * 기존 useChat.ts 206번줄의 인라인 타입을 추출한 것임.
- */
-export interface LoadedMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  /** 원본 ContentBlock 배열 (있으면 고급 렌더링에 사용) */
-  originalContent?: unknown;
-}
+/** Re-export for backwards compatibility */
+export type { LoadedMessageDto as LoadedMessage } from '../types';
 
 export interface UseChatStreamOptions {
   /** BridgeContext에서 가져온 bridge. subscribe/send/isConnected 포함. */
@@ -40,7 +32,7 @@ export interface UseChatStreamReturn {
   // 로컬 메시지 조작 (전송은 하지 않음)
   addUserMessage: (content: string, context?: Context[]) => void;
   clearMessages: () => void;
-  loadMessages: (msgs: LoadedMessage[]) => void;
+  loadMessages: (msgs: LoadedMessageDto[]) => void;
   appendMessage: (message: Message) => void;
   updateMessage: (id: string, updates: Partial<Message>) => void;
 
@@ -57,7 +49,7 @@ export interface UseChatStreamReturn {
 export function useChatStream(options: UseChatStreamOptions): UseChatStreamReturn {
   const { bridge, onStreamStart, onStreamEnd, onError, onSystemMessage } = options;
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<LoadedMessageDto[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -86,14 +78,14 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   }, []);
 
   // Append a new message
-  const appendMessage = useCallback((message: Message) => {
+  const appendMessage = useCallback((message: LoadedMessageDto) => {
     setMessages(prev => [...prev, message]);
   }, []);
 
   // Update an existing message
-  const updateMessage = useCallback((id: string, updates: Partial<Message>) => {
+  const updateMessage = useCallback((id: string, updates: Partial<LoadedMessageDto>) => {
     setMessages(prev => prev.map(msg =>
-      msg.id === id ? { ...msg, ...updates } : msg
+      msg.uuid === id ? { ...msg, ...updates } : msg
     ));
   }, []);
 
@@ -106,9 +98,9 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       pendingDeltaRef.current = '';
 
       setMessages(prev => prev.map(msg => {
-        if (msg.id === msgId) {
-          const currentContent = typeof msg.content === 'string' ? msg.content : '';
-          return { ...msg, content: currentContent + delta };
+        if (msg.uuid === msgId) {
+          const currentContent = typeof msg.message?.content === 'string' ? msg.message.content : '';
+          return { ...msg, message: { ...msg.message!, content: currentContent + delta } };
         }
         return msg;
       }));
@@ -159,23 +151,23 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
     setError(null);
 
-    // Create user message
-    const userMessage: Message = {
-      id: generateMessageId(),
-      role: 'user',
-      content: content.trim(),
-      timestamp: Date.now(),
+    // Create user message in JSONL structure
+    const userMessage: LoadedMessageDto = {
+      type: 'user',
+      uuid: generateMessageId(),
+      timestamp: new Date().toISOString(),
+      message: { role: 'user', content: content.trim() } as any,
       context,
     };
     appendMessage(userMessage);
 
     // Create assistant placeholder
     const assistantMessageId = generateMessageId();
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
+    const assistantMessage: LoadedMessageDto = {
+      type: 'assistant',
+      uuid: assistantMessageId,
+      timestamp: new Date().toISOString(),
+      message: { role: 'assistant', content: '' } as any,
       isStreaming: true,
     };
     appendMessage(assistantMessage);
@@ -211,15 +203,13 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     setError(null);
   }, []);
 
-  // Load messages
-  const loadMessages = useCallback((msgs: LoadedMessage[]) => {
-    const convertedMessages: Message[] = msgs.map((msg, index) => ({
-      id: `loaded-${index}-${Date.now()}`,
-      role: msg.role,
-      content: msg.content,
-      timestamp: new Date(msg.timestamp).getTime(),
-      isStreaming: false,
-    }));
+  // Load messages from raw JSONL entries.
+  // LoadedMessageDto's @Type/@Transform decorators handle nested transformation automatically.
+  const loadMessages = useCallback((msgs: LoadedMessageDto[]) => {
+    const convertedMessages = msgs
+      .filter(raw => raw.type === 'user' || raw.type === 'assistant')
+      .map(raw => toInstance(LoadedMessageDto, raw));
+
     setMessages(convertedMessages);
     setError(null);
     console.log('[useChatStream] Loaded messages:', convertedMessages.length);
@@ -227,13 +217,13 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
   // Retry
   const retry = useCallback((messageId: string) => {
-    const messageIndex = messages.findIndex(m => m.id === messageId);
+    const messageIndex = messages.findIndex(m => m.uuid === messageId);
     if (messageIndex === -1) return;
 
     // Find the last user message before this message
     let userMessage: Message | null = null;
     for (let i = messageIndex; i >= 0; i--) {
-      if (messages[i].role === 'user') {
+      if (messages[i].type === 'user') {
         userMessage = messages[i];
         break;
       }
@@ -289,11 +279,11 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         // 첫 delta 시 streamingMessageId가 없으면 placeholder 자동 생성
         if (!streamingMessageIdRef.current) {
           const assistantMessageId = generateMessageId();
-          const assistantMessage: Message = {
-            id: assistantMessageId,
-            role: 'assistant',
-            content: '',
-            timestamp: Date.now(),
+          const assistantMessage: LoadedMessageDto = {
+            type: 'assistant',
+            uuid: assistantMessageId,
+            timestamp: new Date().toISOString(),
+            message: { role: 'assistant', content: '' } as any,
             isStreaming: true,
           };
           appendMessage(assistantMessage);
@@ -320,39 +310,21 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
       if (!content || !Array.isArray(content)) return;
 
-      // text blocks 합치기
-      const textContent = content
-        .filter(block => block.type === 'text')
-        .map(block => block.text)
-        .join('\n');
-
-      // tool_use blocks 추출
-      const toolUses = content
-        .filter(block => block.type === 'tool_use')
-        .map(block => ({
-          id: block.id,
-          name: block.name,
-          input: block.input || {},
-          status: 'pending' as const,
-        }));
-
       // 기존 assistant 메시지 업데이트 또는 새로 생성
       if (streamingMessageIdRef.current) {
         updateMessage(streamingMessageIdRef.current, {
-          content: textContent,
-          toolUses: toolUses.length > 0 ? toolUses : undefined,
+          message: { role: 'assistant', content } as any,
           isStreaming: false,
           message_id: messageId,
         });
       } else {
         // 새 메시지 추가
-        const assistantMessage: Message = {
-          id: generateMessageId(),
-          role: 'assistant',
-          content: textContent,
-          timestamp: Date.now(),
+        const assistantMessage: LoadedMessageDto = {
+          type: 'assistant',
+          uuid: generateMessageId(),
+          timestamp: new Date().toISOString(),
+          message: { role: 'assistant', content } as any,
           isStreaming: false,
-          toolUses: toolUses.length > 0 ? toolUses : undefined,
           message_id: messageId,
         };
         appendMessage(assistantMessage);

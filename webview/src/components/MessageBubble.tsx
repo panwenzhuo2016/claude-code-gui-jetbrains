@@ -1,4 +1,4 @@
-import { Message } from '../types';
+import {LoadedMessageDto} from '../types';
 import {
   UserMessageRenderer,
   AssistantMessageRenderer,
@@ -6,12 +6,12 @@ import {
 } from './message-renderers';
 
 interface MessageBubbleProps {
-  message: Message;
+  message: LoadedMessageDto;
   onRetry?: (messageId: string) => void;
 }
 
 export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
-  switch (message.role) {
+  switch (message.type) {
     case 'user':
       return <UserMessageRenderer message={message} />;
     case 'assistant':

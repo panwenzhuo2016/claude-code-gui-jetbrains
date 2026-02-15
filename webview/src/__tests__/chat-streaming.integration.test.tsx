@@ -78,8 +78,8 @@ function TestChatComponent() {
       </button>
       <div data-testid="messages">
         {ctx.messages.map((m) => (
-          <div key={m.id} data-testid={`msg-${m.role}`}>
-            {typeof m.content === 'string' ? m.content : 'blocks'}
+          <div key={m.uuid} data-testid={`msg-${m.type}`}>
+            {typeof m.message?.content === 'string' ? m.message.content : 'blocks'}
           </div>
         ))}
       </div>

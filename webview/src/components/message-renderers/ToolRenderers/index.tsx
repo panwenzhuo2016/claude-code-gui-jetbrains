@@ -3,6 +3,7 @@ import {ToolUseBlockDto} from "@/dto";
 import {LoadedMessageDto} from "@/types";
 import { BashRenderer } from "./BashRenderer";
 import {TodoWriteRenderer} from "./TodoWriteRenderer.tsx";
+import {TaskRenderer} from "./TaskRenderer.tsx";
 
 interface ToolRendererProps {
     toolUse: ToolUseBlockDto;
@@ -14,7 +15,7 @@ export function toolMapper() {
 
     registerTool(map, BashRenderer);
     registerTool(map, TodoWriteRenderer);
-    // registerTool(map, TodoWriteRenderer, 'Task');
+    registerTool(map, TaskRenderer);
 
     return map;
 }

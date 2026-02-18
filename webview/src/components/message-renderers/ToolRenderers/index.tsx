@@ -14,10 +14,12 @@ export function toolMapper() {
 
     registerTool(map, BashRenderer);
     registerTool(map, TodoWriteRenderer);
+    // registerTool(map, TodoWriteRenderer, 'Task');
 
     return map;
 }
 
-function registerTool(map: Map<string, FC<ToolRendererProps>>, tool: FC<ToolRendererProps>) {
-    map.set(tool.name.replace('Renderer', ''), tool);
+function registerTool(map: Map<string, FC<ToolRendererProps>>, tool: FC<ToolRendererProps>, name?: string) {
+    const key = name || tool.name.replace('Renderer', '');
+    map.set(key, tool);
 }

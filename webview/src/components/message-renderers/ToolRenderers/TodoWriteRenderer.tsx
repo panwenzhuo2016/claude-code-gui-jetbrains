@@ -2,19 +2,16 @@ import {ToolHeader, ToolWrapper} from "@/components/message-renderers/ToolRender
 import {ToolUseBlockDto} from "@/dto";
 import {LoadedMessageDto} from "@/types";
 
-interface BashToolUseDto {
-    name: string;
-    input: {
-        command: string;
-        description: string;
-    };
-    tool_result?: BashToolResultDto;
-}
 
-interface BashToolResultDto {
-    message: {
-        content: [{content: string}]
-    }
+class TodoWriteToolUseDto extends ToolUseBlockDto {
+    caller: { type: 'direct' };
+    declare input: {
+        todos: {
+            content: string;
+            status: 'completed' | 'in_progress';
+            activeForm: string;
+        }[];
+    };
 }
 
 interface Props {
@@ -23,7 +20,8 @@ interface Props {
 }
 
 export function TodoWriteRenderer(props: Props) {
-    // const toolUse = props.toolUse as unknown as BashToolUseDto;
+    const toolUse = props.toolUse as unknown as TodoWriteToolUseDto;
+    const todos = toolUse.input.todos;
     // const toolResult = props.toolResult as BashToolResultDto | undefined;
     //
     // const name = toolUse.name;
@@ -32,8 +30,23 @@ export function TodoWriteRenderer(props: Props) {
     // const output = toolResult?.message?.content[0].content ?? '' as string;
 
     return (
-        <ToolWrapper onClick={() => console.log(props.toolUse)}>
-            <ToolHeader name="Update Todos" />
+        <ToolWrapper onClick={() => console.log(props.toolUse, todos)}>
+            <ToolHeader name="Update Todos"/>
+
+            <div className="text-[12px] font-mono flex flex-col gap-[8px]">
+                {todos.map((todo, i) => {
+                    const isChecked = todo.status === 'completed';
+
+                    return (
+                        <div key={i}>
+                            <div className={`flex items-start gap-2 ${isChecked ? 'opacity-40 line-through' : ''}`}>
+                                <div><input type="checkbox" defaultChecked={isChecked} disabled /></div>
+                                <div>{todo.content}</div>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
         </ToolWrapper>
     );
 }

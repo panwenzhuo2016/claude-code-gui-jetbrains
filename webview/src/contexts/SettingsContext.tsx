@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { SettingsState, DEFAULT_SETTINGS } from '@/types/settings';
-import { useBridge } from '@/hooks/useBridge';
+import { useBridgeContext } from '@/contexts/BridgeContext';
 
 interface SettingsContextValue {
   settings: SettingsState;
@@ -20,7 +20,7 @@ interface SettingsProviderProps {
 export function SettingsProvider({ children }: SettingsProviderProps) {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
-  const { isConnected, send } = useBridge();
+  const { isConnected, send } = useBridgeContext();
 
   // Bridge에서 설정 로드
   const loadFromBridge = useCallback(async (): Promise<boolean> => {

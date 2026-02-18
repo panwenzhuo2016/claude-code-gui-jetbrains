@@ -24,23 +24,10 @@ export interface ApiConfig {
  * // Session operations (parent resource)
  * const sessions = await api.sessions.index();
  *
- * // Load session with message subscription
- * const { messages } = await api.sessions.show(sessionId, (message) => {
- *   // Handle streaming messages
- *   switch (message.type) {
- *     case 'content_block_delta':
- *       // Update UI with delta
- *       break;
- *     case 'assistant':
- *       // Complete assistant message
- *       break;
- *     case 'result':
- *       // Stream complete
- *       break;
- *   }
- * });
+ * // Load session (triggers SESSION_LOADED event)
+ * await api.sessions.load(sessionId);
  *
- * // Send message (subscriptions managed by show())
+ * // Send message
  * await api.messages.create(sessionId, 'Hello');
  *
  * // Tool operations
@@ -88,29 +75,10 @@ export class ClaudeCodeApi {
   }
 
   /**
-   * Initialize the API with bridge functions from useBridge hook
-   * Must be called before using the API
-   */
-  initialize(
-    send: (type: string, payload: Record<string, unknown>) => Promise<any>,
-    subscribe: (type: string, handler: (message: IPCMessage) => void) => () => void,
-    isConnected: boolean
-  ): void {
-    this.bridge.initialize(send, subscribe, isConnected);
-  }
-
-  /**
-   * Update connection status
-   */
-  setConnected(connected: boolean): void {
-    this.bridge.setConnected(connected);
-  }
-
-  /**
    * Check if the API is connected to the backend
    */
   get isConnected(): boolean {
-    return this.bridge.connected;
+    return this.bridge.isConnected;
   }
 
   /**

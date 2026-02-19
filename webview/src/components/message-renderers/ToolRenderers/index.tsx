@@ -7,6 +7,7 @@ import {TaskRenderer} from "./TaskRenderer.tsx";
 import {ReadRenderer} from "@/components/message-renderers/ToolRenderers/ReadRenderer.tsx";
 import {GrepRenderer} from "@/components/message-renderers/ToolRenderers/GrepRenderer.tsx";
 import {GlobRenderer} from "@/components/message-renderers/ToolRenderers/GlobRenderer.tsx";
+import {EditRenderer} from "@/components/message-renderers/ToolRenderers/EditRenderer.tsx";
 
 interface ToolRendererProps {
     toolUse: ToolUseBlockDto;
@@ -22,6 +23,7 @@ export function toolMapper() {
     registerTool(map, ReadRenderer);
     registerTool(map, GrepRenderer);
     registerTool(map, GlobRenderer);
+    registerTool(map, EditRenderer);
 
     return map;
 }

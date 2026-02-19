@@ -10,9 +10,9 @@ export function DropdownToggle({ sessionTitle, isOpen, onClick }: DropdownToggle
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1 px-2 py-0.5 text-[13px] text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/50 rounded transition-colors"
+      className="flex items-center gap-1 px-2 py-0.5 text-[13px] text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/50 rounded transition-colors max-w-full"
     >
-      <span className="max-w-[300px] truncate">{sessionTitle || 'New Chat'}</span>
+      <span className="max-w-[260px] truncate">{sessionTitle || 'New Chat'}</span>
       <ChevronDownIcon className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
     </button>
   );

@@ -26,12 +26,14 @@ export function SessionHeader({
   return (
     <div className="flex justify-between items-center px-2 py-1">
       {/* Left: Session dropdown */}
-      <SessionDropdown
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        sessionTitle={sessionTitle}
-        onSelectSession={onSelectSession}
-      />
+      <div className="min-w-0 flex-1">
+        <SessionDropdown
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          sessionTitle={sessionTitle}
+          onSelectSession={onSelectSession}
+        />
+      </div>
 
       {/* Right: buttons */}
       <div className="flex items-center gap-1">

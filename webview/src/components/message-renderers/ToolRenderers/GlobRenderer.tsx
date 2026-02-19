@@ -1,5 +1,5 @@
 import {LoadedMessageDto, ToolUseBlockDto} from "@/types";
-import {Container, LabelValue, ToolHeader, ToolWrapper} from "./common";
+import {ToolHeader, ToolWrapper} from "./common";
 import {getAdapter} from "@/adapters";
 import {useState} from "react";
 import {useSessionContext} from "@/contexts/SessionContext";

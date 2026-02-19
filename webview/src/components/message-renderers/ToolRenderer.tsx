@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import React from 'react';
 import {LoadedMessageDto} from '../../types';
 import {ToolUseBlockDto} from '../../dto/message/ContentBlockDto';
 import {toolMapper} from "@/components/message-renderers/ToolRenderers";

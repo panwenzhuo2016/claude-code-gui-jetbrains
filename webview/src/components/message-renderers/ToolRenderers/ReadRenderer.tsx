@@ -1,5 +1,5 @@
 import {LoadedMessageDto, ToolUseBlockDto} from "@/types";
-import {Container, LabelValue, ToolHeader, ToolWrapper} from "./common";
+import {ToolHeader, ToolWrapper} from "./common";
 import {getAdapter} from "@/adapters";
 
 class ReadToolUseDto extends ToolUseBlockDto {
@@ -26,7 +26,7 @@ export function ReadRenderer(props: Props) {
     return (
         <ToolWrapper>
             <ToolHeader name={name}>
-                <div className="text-white/80 text-[12px] cursor-pointer hover:underline" onClick={() => getAdapter().openFile(path)}>{fileName}</div>
+                <div className="text-white/80 text-[12px] cursor-pointer hover:underline font-mono" onClick={() => getAdapter().openFile(path)}>{fileName}</div>
             </ToolHeader>
         </ToolWrapper>
     )

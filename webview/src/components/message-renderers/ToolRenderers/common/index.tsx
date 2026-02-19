@@ -77,7 +77,7 @@ export const Value = (props: {
     const {isFocused, onClick, children, maxHeight = 'max-h-[105px]'} = props;
 
     return (
-        <div className={`flex-1 text-white/80 whitespace-pre font-mono overflow-auto cursor-pointer ${isFocused ? '' : maxHeight}`} onClick={onClick}>
+        <div className={`flex-1 text-white/80 whitespace-pre font-mono overflow-hidden cursor-pointer ${isFocused ? '' : maxHeight}`} onClick={onClick}>
             {children}
         </div>
     );

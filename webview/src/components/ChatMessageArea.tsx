@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
-import {getToolUses, LoadedMessageDto, isContentBlockArray} from '../types';
+import {LoadedMessageDto, isContentBlockArray} from '../types';
 import { MessageBubble } from './MessageBubble';
-import { ToolCard } from './ToolCard';
 import { ProjectSelector } from './ProjectSelector';
 import { ToolUseBlockDto, ToolResultBlockDto } from '../dto/message/ContentBlockDto';
 
@@ -21,8 +20,8 @@ export function ChatMessageArea({
   workingDirectory,
   onSelectProject,
   onRetry,
-  approveToolUse,
-  denyToolUse,
+  // approveToolUse,
+  // denyToolUse,
 }: ChatMessageAreaProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

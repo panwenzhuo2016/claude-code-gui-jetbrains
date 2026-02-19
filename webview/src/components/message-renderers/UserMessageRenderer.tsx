@@ -12,6 +12,7 @@ interface UserMessageRendererProps {
 }
 
 const INTERRUPTED_TEXT = '[Request interrupted by user]';
+const INTERRUPTED_FOR_TOOL_USE_TEXT = '[Request interrupted by user for tool use]';
 
 export const UserMessageRenderer: React.FC<UserMessageRendererProps> = ({ message }) => {
   const { copied, copy } = useCopyToClipboard();
@@ -30,6 +31,11 @@ export const UserMessageRenderer: React.FC<UserMessageRendererProps> = ({ messag
   // Route interrupted messages to dedicated renderer
   if (parsedContent.text.trim() === INTERRUPTED_TEXT) {
     return <InterruptedMessageRenderer message={message} />;
+  }
+
+  // Route tool use interrupted messages with custom label
+  if (parsedContent.text.trim() === INTERRUPTED_FOR_TOOL_USE_TEXT) {
+    return <InterruptedMessageRenderer message={message} label="Tool interrupted" />;
   }
 
   return (

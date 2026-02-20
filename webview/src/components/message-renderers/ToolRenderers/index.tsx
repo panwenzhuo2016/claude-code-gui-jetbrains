@@ -14,6 +14,7 @@ import {ExitPlanModeRenderer} from "./ExitPlanModeRenderer.tsx";
 import {WebFetchRenderer} from "./WebFetchRenderer.tsx";
 import {WebSearchRenderer} from "./WebSearchRenderer.tsx";
 import {WriteRenderer} from "./WriteRenderer.tsx";
+import {SkillRenderer} from "./SkillRenderer.tsx";
 
 interface ToolRendererProps {
     toolUse: ToolUseBlockDto;
@@ -37,6 +38,7 @@ export function toolMapper() {
     registerTool(map, WebFetchRenderer);
     registerTool(map, WebSearchRenderer);
     registerTool(map, WriteRenderer);
+    registerTool(map, SkillRenderer);
 
     return map;
 }

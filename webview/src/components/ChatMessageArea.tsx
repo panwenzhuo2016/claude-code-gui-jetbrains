@@ -83,6 +83,13 @@ export function ChatMessageArea({
       }
     }
 
+    // Reset runtime-only fields to prevent duplication on re-render (e.g. React StrictMode)
+    for (const toolUseBlock of toolUseMap.values()) {
+      toolUseBlock.tool_result = undefined;
+      toolUseBlock.childMessages = undefined;
+      toolUseBlock.subAgentMessages = undefined;
+    }
+
     // Phase 1.5: Attach progress entries to Task tool_use blocks
     for (const [parentId, progressEntries] of progressMap) {
       const toolUseBlock = toolUseMap.get(parentId);
@@ -96,6 +103,17 @@ export function ChatMessageArea({
     for (const msg of messages) {
       if (msg.type === 'progress') continue; // Skip progress entries (rendered inside TaskRenderer)
       if (msg.type === 'user') {
+        // Phase 2a: Attach child messages linked via sourceToolUseID (e.g. skill-expanded prompts)
+        if (msg.sourceToolUseID) {
+          const toolUseBlock = toolUseMap.get(msg.sourceToolUseID);
+          if (toolUseBlock) {
+            if (!toolUseBlock.childMessages) toolUseBlock.childMessages = [];
+            toolUseBlock.childMessages.push(msg);
+            continue; // Don't add to result (rendered inside tool renderer)
+          }
+        }
+
+        // Phase 2b: Attach tool_result messages
         const content = msg.message?.content;
         if (isContentBlockArray(content)) {
           const isToolResultOnly = content.every(block => block.type === 'tool_result');

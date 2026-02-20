@@ -77,6 +77,9 @@ export class LoadedMessageDto {
     };
   };
 
+  // skill-expanded message linkage
+  sourceToolUseID?: string;
+
   // metadata
   slug?: string;
   sessionId?: string;

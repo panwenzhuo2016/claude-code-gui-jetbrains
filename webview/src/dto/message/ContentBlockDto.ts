@@ -28,6 +28,8 @@ export class ToolUseBlockDto extends ContentBlockDto {
   input!: Record<string, unknown>;
   /** Runtime-only: merged tool_result message from subsequent user message */
   tool_result?: LoadedMessageDto;
+  /** Runtime-only: child messages linked via sourceToolUseID (e.g. skill-expanded prompts) */
+  childMessages?: LoadedMessageDto[];
   /** Runtime-only: progress entries from sub-agent (for Task tool only) */
   subAgentMessages?: SubAgentMessage[];
 }

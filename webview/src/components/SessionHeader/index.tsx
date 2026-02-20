@@ -1,23 +1,16 @@
-import { SessionMetaDto } from '@/dto';
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { SessionDropdown } from './SessionDropdown';
 import { Route } from '@/router';
 import { Label, ROUTE_META } from '@/router/routes';
 
 interface SessionHeaderProps {
-  sessions: SessionMetaDto[];
-  currentSessionId: string | null;
   sessionTitle: string;
-  onSelectSession: (sessionId: string) => void;
   onOpenNewTab: () => void;
   onOpenSettings: () => void;
 }
 
 export function SessionHeader({
-  sessions,
-  currentSessionId,
   sessionTitle,
-  onSelectSession,
   onOpenNewTab,
   onOpenSettings,
 }: SessionHeaderProps) {
@@ -28,10 +21,7 @@ export function SessionHeader({
       {/* Left: Session dropdown */}
       <div className="min-w-0 flex-1">
         <SessionDropdown
-          sessions={sessions}
-          currentSessionId={currentSessionId}
           sessionTitle={sessionTitle}
-          onSelectSession={onSelectSession}
         />
       </div>
 

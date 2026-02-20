@@ -1,22 +1,17 @@
-import { SessionMetaDto } from '@/dto';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { groupSessionsByDate } from './utils';
 import { DropdownToggle } from './DropdownToggle';
 import { DropdownMenu } from './DropdownMenu';
+import { useSessionContext } from '@/contexts/SessionContext';
 
 interface SessionDropdownProps {
-  sessions: SessionMetaDto[];
-  currentSessionId: string | null;
   sessionTitle: string;
-  onSelectSession: (sessionId: string) => void;
 }
 
 export function SessionDropdown({
-  sessions,
-  currentSessionId,
   sessionTitle,
-  onSelectSession,
 }: SessionDropdownProps) {
+  const { sessions, currentSessionId, switchSession } = useSessionContext();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -54,7 +49,7 @@ export function SessionDropdown({
   }, [filteredSessions]);
 
   const handleSelectSession = (sessionId: string) => {
-    onSelectSession(sessionId);
+    switchSession(sessionId);
     setIsOpen(false);
     setSearchQuery('');
   };

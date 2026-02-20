@@ -30,7 +30,6 @@ export function ChatPanel() {
     setWorkingDirectory,
     openNewTab,
     openSettings,
-    switchSession,
     saveMessages,
   } = useSessionContext();
 
@@ -79,10 +78,7 @@ export function ChatPanel() {
       {/* Header - Minimal */}
       <div className="flex-shrink-0 border-b border-zinc-800">
         <SessionHeader
-          sessions={sessions}
-          currentSessionId={currentSessionId}
           sessionTitle={sessionTitle}
-          onSelectSession={switchSession}
           onOpenNewTab={handleOpenNewTab}
           onOpenSettings={openSettings}
         />

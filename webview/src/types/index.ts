@@ -87,20 +87,12 @@ export class LoadedMessageDto {
   // UI-only fields (not in JSONL, set during streaming/local creation)
   isStreaming?: boolean;
   context?: Context[];
-  images?: MessageImage[];
 }
 
 
 // ============================================
 // Supporting types
 // ============================================
-
-export interface MessageImage {
-  type: 'base64' | 'url';
-  mediaType: string;
-  data: string;
-  filename?: string;
-}
 
 export interface Context {
   type: 'selection' | 'file' | 'explicit';

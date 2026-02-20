@@ -28,7 +28,7 @@ export const ContextPills: React.FC<ContextPillsProps> = ({ context }) => {
   }
 
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2">
       {context.map((ctx, idx) => (
         <div
           key={idx}

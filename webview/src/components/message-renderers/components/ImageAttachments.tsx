@@ -1,23 +1,23 @@
 import React, { useState } from 'react';
-import { MessageImage } from '../../../types';
+import type { ImageBlockDto } from '../../../dto/message/ContentBlockDto';
 
 interface ImageAttachmentsProps {
-  images: MessageImage[];
+  images: ImageBlockDto[];
 }
 
 export const ImageAttachments: React.FC<ImageAttachmentsProps> = ({ images }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const getImageSrc = (image: MessageImage): string => {
-    if (image.type === 'base64') {
-      return `data:${image.mediaType};base64,${image.data}`;
+  const getImageSrc = (image: ImageBlockDto): string => {
+    if (image.source.type === 'base64') {
+      return `data:${image.source.media_type};base64,${image.source.data}`;
     }
-    return image.data; // URL type
+    return image.source.data; // URL type
   };
 
   return (
     <>
-      <div className="flex flex-wrap gap-2 mt-2">
+      <div className="flex flex-wrap gap-2">
         {images.map((image, index) => (
           <div
             key={index}
@@ -27,17 +27,10 @@ export const ImageAttachments: React.FC<ImageAttachmentsProps> = ({ images }) =>
             <div className="overflow-hidden rounded-md border border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800/80 transition-colors">
               <img
                 src={getImageSrc(image)}
-                alt={image.filename || `Image ${index + 1}`}
-                className="w-[120px] h-[90px] object-cover"
+                alt={`Image ${index + 1}`}
+                className="w-[110px] h-[60px] object-cover"
               />
             </div>
-            {image.filename && (
-              <div className="mt-1 px-1">
-                <span className="text-xs text-zinc-400 truncate block max-w-[120px]">
-                  {image.filename}
-                </span>
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -56,7 +49,7 @@ export const ImageAttachments: React.FC<ImageAttachmentsProps> = ({ images }) =>
               onClick={(e) => e.stopPropagation()}
             />
             <button
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-200 transition-colors"
+              className="absolute -top-3.5 -right-3.5 w-7 h-7 flex items-center justify-center rounded-full bg-zinc-800/20 hover:bg-zinc-700/70 border border-zinc-700 text-zinc-200 transition-colors"
               onClick={() => setSelectedImage(null)}
             >
               ✕

@@ -22,26 +22,29 @@ interface ToolRendererProps {
     message?: LoadedMessageDto;
 }
 
-export function toolMapper() {
+// Add all renderer component here.
+const Renderers = [
+    BashRenderer,
+    TodoWriteRenderer,
+    TaskRenderer,
+    ReadRenderer,
+    GrepRenderer,
+    GlobRenderer,
+    EditRenderer,
+    AskUserQuestionRenderer,
+    EnterPlanModeRenderer,
+    ExitPlanModeRenderer,
+    WebFetchRenderer,
+    WebSearchRenderer,
+    WriteRenderer,
+    SkillRenderer,
+];
+
+export const ToolRendererMap = (() => {
     const map = new Map<string, FC<ToolRendererProps>>();
-
-    registerTool(map, BashRenderer);
-    registerTool(map, TodoWriteRenderer);
-    registerTool(map, TaskRenderer);
-    registerTool(map, ReadRenderer);
-    registerTool(map, GrepRenderer);
-    registerTool(map, GlobRenderer);
-    registerTool(map, EditRenderer);
-    registerTool(map, AskUserQuestionRenderer);
-    registerTool(map, EnterPlanModeRenderer);
-    registerTool(map, ExitPlanModeRenderer);
-    registerTool(map, WebFetchRenderer);
-    registerTool(map, WebSearchRenderer);
-    registerTool(map, WriteRenderer);
-    registerTool(map, SkillRenderer);
-
+    Renderers.forEach((R) => registerTool(map, R));
     return map;
-}
+})();
 
 function registerTool(map: Map<string, FC<ToolRendererProps>>, tool: FC<ToolRendererProps>, name?: string) {
     const key = name || tool.name.replace('Renderer', '');

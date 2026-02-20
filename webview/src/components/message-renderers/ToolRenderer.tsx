@@ -1,7 +1,7 @@
 import React from 'react';
 import {LoadedMessageDto} from '../../types';
 import {ToolUseBlockDto} from '../../dto/message/ContentBlockDto';
-import {toolMapper} from "./ToolRenderers";
+import {ToolRendererMap} from "./ToolRenderers";
 import {ToolHeader, ToolWrapper} from "./ToolRenderers/common";
 
 interface ToolRendererProps {
@@ -9,13 +9,12 @@ interface ToolRendererProps {
     message?: LoadedMessageDto;
 }
 
-const mapper = toolMapper();
 export const ToolRenderer: React.FC<ToolRendererProps> = ({toolUse, message}) => {
     const toolResult = toolUse.tool_result as LoadedMessageDto | undefined;
 
-    const Component = mapper.get(toolUse.name)
-    if (Component) {
-        return <Component toolUse={toolUse} toolResult={toolResult} message={message} />
+    const Renderer = ToolRendererMap.get(toolUse.name)
+    if (Renderer) {
+        return <Renderer toolUse={toolUse} toolResult={toolResult} message={message} />
     }
 
     return (

@@ -47,8 +47,9 @@ class ProcessManager(
 
     /**
      * Start the Claude CLI process
+     * @param sessionId Optional session ID to use for this conversation
      */
-    suspend fun start() = withContext(Dispatchers.IO) {
+    suspend fun start(sessionId: String? = null, workingDir: String? = null) = withContext(Dispatchers.IO) {
         if (isRunning) {
             logger.warn("Process already running")
             return@withContext
@@ -68,8 +69,14 @@ class ProcessManager(
                 addParameter("--verbose")
                 addParameter("--include-partial-messages")
 
-                // Set working directory to project base path
-                setWorkDirectory(project.basePath)
+                // Set session ID if provided (WebView-generated)
+                if (sessionId != null) {
+                    addParameter("--session-id")
+                    addParameter(sessionId)
+                }
+
+                // Set working directory: prefer workingDir from WebView, fallback to project base path
+                setWorkDirectory(workingDir ?: project.basePath)
 
                 // Set environment variables
                 withEnvironment(System.getenv())

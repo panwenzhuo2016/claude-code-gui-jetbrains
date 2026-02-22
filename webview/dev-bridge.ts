@@ -433,7 +433,7 @@ function generateSessionId(): string {
   });
 }
 
-function startClaudeProcess(ws: WebSocket, content: string, workingDir: string) {
+function startClaudeProcess(ws: WebSocket, content: string, workingDir: string, isNewSession: boolean = false) {
   // Kill existing process if any
   if (claudeProcess) {
     claudeProcess.kill();
@@ -444,25 +444,31 @@ function startClaudeProcess(ws: WebSocket, content: string, workingDir: string) 
   console.log('[dev-bridge] Working directory:', workingDir);
   console.log('[dev-bridge] Message:', content.substring(0, 100) + '...');
 
-  // Generate session ID if not exists (first message)
-  let args: string[];
+  // sessionId는 WebView가 SEND_MESSAGE payload로 이미 설정함
+  // fallback: sessionId가 없으면 자체 생성
   if (!sessionId) {
     sessionId = generateSessionId();
-    console.log('[dev-bridge] New session created:', sessionId);
+  }
+
+  let args: string[];
+  if (isNewSession) {
+    console.log('[dev-bridge] New session:', sessionId);
     args = [
       '--print',
       '--output-format', 'stream-json',
       '--verbose',
+      '--include-partial-messages',
       '--session-id', sessionId,
       '--',
       content
     ];
   } else {
-    console.log('[dev-bridge] Resuming existing session:', sessionId);
+    console.log('[dev-bridge] Resuming session:', sessionId);
     args = [
       '--print',
       '--output-format', 'stream-json',
       '--verbose',
+      '--include-partial-messages',
       '--resume', sessionId,
       '--',
       content
@@ -521,9 +527,8 @@ function startClaudeProcess(ws: WebSocket, content: string, workingDir: string) 
         console.log('[dev-bridge] JSON event type:', event.type);
         handleStreamEvent(ws, event);
       } catch {
-        // JSON이 아닌 경우 텍스트로 처리
-        console.log('[dev-bridge] Non-JSON output:', line);
-        sendToClient(ws, 'STREAM_DELTA', { delta: line + '\n' });
+        // JSON이 아닌 경우 텍스트로 처리 (stream-json 모드에서는 발생하지 않아야 함)
+        console.log('[dev-bridge] Non-JSON output (unexpected in stream-json mode):', line);
       }
     }
   });
@@ -531,8 +536,7 @@ function startClaudeProcess(ws: WebSocket, content: string, workingDir: string) 
   claudeProcess.stderr?.on('data', (data: Buffer) => {
     const error = data.toString();
     console.error('[dev-bridge] Claude CLI stderr:', error);
-    // stderr도 UI에 표시 (에러 메시지)
-    sendToClient(ws, 'STREAM_DELTA', { delta: error });
+    // stream-json 모드에서는 stderr를 로그만 남기고 UI에는 전송하지 않음
   });
 
   claudeProcess.on('close', (code) => {
@@ -544,7 +548,7 @@ function startClaudeProcess(ws: WebSocket, content: string, workingDir: string) 
         const event = JSON.parse(buffer);
         handleStreamEvent(ws, event);
       } catch {
-        sendToClient(ws, 'STREAM_DELTA', { delta: buffer });
+        console.log('[dev-bridge] Remaining buffer (non-JSON):', buffer);
       }
     }
 
@@ -563,48 +567,100 @@ function startClaudeProcess(ws: WebSocket, content: string, workingDir: string) 
 }
 
 function handleStreamEvent(ws: WebSocket, event: Record<string, unknown>) {
-  // Claude CLI stream-json 이벤트 처리
-  // 참고: https://docs.anthropic.com/claude/reference/streaming
+  // Claude CLI --output-format stream-json 이벤트 처리
+  // CLI 출력 타입: system, stream_event, assistant, result
 
   const eventType = event.type as string;
 
   switch (eventType) {
-    case 'content_block_start':
-    case 'message_start':
-      // 시작 이벤트, 무시
+    case 'system':
+      // 세션 초기화 이벤트
+      sendToClient(ws, 'STREAM_EVENT', {
+        eventType: 'system',
+        subtype: event.subtype,
+        sessionId: event.session_id,
+        cwd: event.cwd,
+        model: event.model,
+      });
       break;
 
-    case 'content_block_delta':
-      // 텍스트 델타
-      const delta = event.delta as Record<string, unknown>;
-      if (delta?.type === 'text_delta' && delta?.text) {
-        sendToClient(ws, 'STREAM_DELTA', { delta: delta.text as string });
+    case 'stream_event': {
+      // Anthropic API 이벤트를 래핑한 CLI 이벤트
+      // 구조: { type: "stream_event", event: { type: "content_block_delta", ... } }
+      const innerEvent = event.event as Record<string, unknown>;
+      if (!innerEvent) {
+        console.log('[dev-bridge] stream_event with no inner event, skipping');
+        break;
       }
-      break;
 
-    case 'message_delta':
-      // 메시지 완료 상태
-      break;
+      const innerType = innerEvent.type as string;
+      const deltaData: Record<string, unknown> = { event: innerType };
 
-    case 'message_stop':
-      // 메시지 종료
-      break;
+      if (innerEvent.index !== undefined) {
+        deltaData.index = innerEvent.index;
+      }
 
-    case 'error':
-      sendToClient(ws, 'SERVICE_ERROR', { error: event.error || 'Unknown error' });
+      if (innerEvent.delta) {
+        const delta = innerEvent.delta as Record<string, unknown>;
+        const deltaType = delta.type as string;
+
+        if (deltaType === 'text_delta') {
+          deltaData.delta = { type: 'text_delta', text: delta.text };
+        } else if (deltaType === 'tool_use_delta') {
+          deltaData.delta = {
+            type: 'tool_use_delta',
+            id: delta.id,
+            name: delta.name,
+            input: delta.input,
+          };
+        } else {
+          deltaData.delta = delta;
+        }
+      }
+
+      if (innerEvent.message) {
+        deltaData.message = innerEvent.message;
+      }
+
+      if (innerEvent.content_block) {
+        deltaData.contentBlock = innerEvent.content_block;
+      }
+
+      sendToClient(ws, 'STREAM_EVENT', deltaData);
       break;
+    }
+
+    case 'assistant': {
+      // 완성된 어시스턴트 메시지
+      const message = event.message as Record<string, unknown> | undefined;
+      sendToClient(ws, 'ASSISTANT_MESSAGE', {
+        messageId: message?.id,
+        content: message?.content || [],
+      });
+      break;
+    }
+
+    case 'result': {
+      // 완료 결과
+      const errorField = event.error as Record<string, unknown> | undefined;
+      sendToClient(ws, 'RESULT_MESSAGE', {
+        status: event.subtype || event.status || 'unknown',
+        isError: event.is_error || false,
+        result: event.result || null,
+        sessionId: event.session_id || null,
+        error: errorField
+          ? {
+              code: errorField.code,
+              message: errorField.message,
+              details: errorField.details,
+            }
+          : null,
+      });
+      break;
+    }
 
     default:
-      // 알 수 없는 이벤트 타입이면 result 체크
-      if (event.result) {
-        // 최종 결과 (--print 모드)
-        const result = event.result as string;
-        sendToClient(ws, 'STREAM_DELTA', { delta: result });
-      } else if (event.content) {
-        // content 필드가 있는 경우
-        const content = event.content as string;
-        sendToClient(ws, 'STREAM_DELTA', { delta: content });
-      }
+      console.log('[dev-bridge] Unknown CLI event type:', eventType, event);
       break;
   }
 }
@@ -650,8 +706,14 @@ export function devBridgePlugin() {
               case 'SEND_MESSAGE':
                 const content = message.payload?.content as string;
                 const workingDir = message.payload?.workingDir as string || process.cwd();
+                const msgSessionId = message.payload?.sessionId as string | undefined;
+                const isNewSession = message.payload?.isNewSession as boolean ?? false;
+                // WebView가 생성한 sessionId 사용
+                if (msgSessionId) {
+                  sessionId = msgSessionId;
+                }
                 if (content) {
-                  startClaudeProcess(ws, content, workingDir);
+                  startClaudeProcess(ws, content, workingDir, isNewSession);
                 }
                 // ACK 전송
                 sendToClient(ws, 'ACK', { requestId: message.requestId });

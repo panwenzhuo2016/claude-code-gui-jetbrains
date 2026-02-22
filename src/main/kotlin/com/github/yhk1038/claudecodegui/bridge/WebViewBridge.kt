@@ -68,7 +68,7 @@ class WebViewBridge(
     /**
      * Start a per-tab CLI process
      */
-    private suspend fun startCliProcess(): Result<Unit> {
+    private suspend fun startCliProcess(sessionId: String? = null, workingDir: String? = null): Result<Unit> {
         if (isServiceRunning) {
             logger.info("CLI process already running for this tab")
             return Result.success(Unit)
@@ -132,10 +132,10 @@ class WebViewBridge(
             }
         }
 
-        manager.start()
+        manager.start(sessionId, workingDir)
         isServiceRunning = true
 
-        logger.info("Per-tab CLI process started successfully")
+        logger.info("Per-tab CLI process started successfully (sessionId=$sessionId, workingDir=$workingDir)")
         return Result.success(Unit)
     }
 
@@ -236,10 +236,19 @@ class WebViewBridge(
             }
         }
 
+        val sessionId = payload["sessionId"]?.jsonPrimitive?.content
+        val isNewSession = payload["isNewSession"]?.jsonPrimitive?.boolean ?: false
+        val workingDir = payload["workingDir"]?.jsonPrimitive?.contentOrNull
+
+        // Update current session ID from WebView
+        if (sessionId != null) {
+            currentSessionId = sessionId
+        }
+
         // Lazy-start: start per-tab CLI process if not running
         if (!isServiceRunning) {
             logger.info("Per-tab CLI process not running, starting automatically...")
-            val startResult = startCliProcess()
+            val startResult = startCliProcess(sessionId, workingDir)
             if (startResult.isFailure) {
                 return buildJsonObject {
                     put("status", "error")

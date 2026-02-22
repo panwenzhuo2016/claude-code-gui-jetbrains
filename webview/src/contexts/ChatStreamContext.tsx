@@ -116,13 +116,25 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
   // sendMessage: add to local state + send to Kotlin + create session if needed
   const sendMessage = useCallback(
     (content: string, context?: Context[]) => {
+      // Resolve session ID: use existing or generate new one
+      let sessionId = session.currentSessionId;
+      const isNewSession = !sessionId;
+      if (!sessionId) {
+        sessionId = crypto.randomUUID();
+        session.setCurrentSessionId(sessionId);
+        console.log('[ChatStreamContext] New session created:', sessionId);
+      }
+
       // Add to local chat state
       chatStream.addUserMessage(content, context);
 
-      // Send to Kotlin bridge
+      // Send to bridge with sessionId
       bridge.send('SEND_MESSAGE', {
+        sessionId,
+        isNewSession,
         content,
         context: context || [],
+        workingDir: session.workingDirectory,
       }).then((response) => {
         if (response?.status === 'error') {
           console.error('[ChatStreamContext] Kotlin error:', response.error);
@@ -131,7 +143,7 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
         console.error('[ChatStreamContext] Failed to send message to bridge:', error);
       });
     },
-    [chatStream, bridge]
+    [chatStream, bridge, session]
   );
 
   // handleSubmit: convenience wrapper for form submission

@@ -21,6 +21,7 @@ interface SessionContextValue {
   workingDirectory: string | null;
 
   // Actions
+  setCurrentSessionId: (sessionId: string | null) => void;
   loadSessions: () => Promise<void>;
   resetToNewSession: () => void;
   openNewTab: () => void;
@@ -224,6 +225,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     sessionState,
     isLoading,
     workingDirectory,
+    setCurrentSessionId,
     loadSessions,
     resetToNewSession,
     openNewTab,

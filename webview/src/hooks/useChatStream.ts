@@ -46,6 +46,38 @@ export interface UseChatStreamReturn {
   continue: () => void;
 }
 
+/**
+ * Filter messages to only include those in the active conversation chain.
+ * Traces parentUuid backwards from the last message to identify the active branch.
+ * This handles conversation compaction where abandoned branches should not be displayed.
+ */
+function filterActiveChain(messages: LoadedMessageDto[]): LoadedMessageDto[] {
+  if (messages.length === 0) return messages;
+
+  // Build uuid → message lookup
+  const byUuid = new Map<string, LoadedMessageDto>();
+  for (const msg of messages) {
+    if (msg.uuid) byUuid.set(msg.uuid, msg);
+  }
+
+  // Trace from last message backwards through parentUuid
+  const activeUuids = new Set<string>();
+  let current: LoadedMessageDto | undefined = messages[messages.length - 1];
+  while (current) {
+    if (current.uuid) activeUuids.add(current.uuid);
+    const parentUuid = current.parentUuid;
+    if (parentUuid && byUuid.has(parentUuid)) {
+      current = byUuid.get(parentUuid);
+    } else {
+      break;
+    }
+  }
+
+  // Filter: keep only messages in the active chain
+  // Messages without uuid are excluded (they're not part of any chain)
+  return messages.filter(msg => msg.uuid ? activeUuids.has(msg.uuid) : false);
+}
+
 export function useChatStream(options: UseChatStreamOptions): UseChatStreamReturn {
   const { bridge, onStreamStart, onStreamEnd, onError, onSystemMessage } = options;
 
@@ -56,7 +88,8 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   const [error, setError] = useState<Error | null>(null);
 
   // RAF 스로틀링 관련 refs
-  const pendingDeltaRef = useRef<string>('');
+  const pendingTextRef = useRef<string>('');
+  const pendingThinkingRef = useRef<string>('');
   const rafIdRef = useRef<number | null>(null);
   const streamingMessageIdRef = useRef<string | null>(null); // setState 비동기 대응
   const devModeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,44 +123,72 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   }, []);
 
   // RAF flush - batch update for delta accumulation
-  const flushPendingDelta = useCallback(() => {
+  const flushPendingDeltas = useCallback(() => {
     rafIdRef.current = null;
-    if (pendingDeltaRef.current && streamingMessageIdRef.current) {
-      const delta = pendingDeltaRef.current;
-      const msgId = streamingMessageIdRef.current;
-      pendingDeltaRef.current = '';
+    const msgId = streamingMessageIdRef.current;
+    if (!msgId) return;
 
-      setMessages(prev => prev.map(msg => {
-        if (msg.uuid === msgId) {
-          const currentContent = typeof msg.message?.content === 'string' ? msg.message.content : '';
-          return { ...msg, message: { ...msg.message!, content: currentContent + delta } };
+    const textDelta = pendingTextRef.current;
+    const thinkingDelta = pendingThinkingRef.current;
+    if (!textDelta && !thinkingDelta) return;
+
+    pendingTextRef.current = '';
+    pendingThinkingRef.current = '';
+
+    setMessages(prev => prev.map(msg => {
+      if (msg.uuid !== msgId) return msg;
+
+      // Get current content as block array
+      const currentBlocks = Array.isArray(msg.message?.content)
+        ? [...(msg.message!.content as any[])]
+        : [];
+
+      // Upsert thinking block
+      if (thinkingDelta) {
+        const idx = currentBlocks.findIndex((b: any) => b.type === 'thinking');
+        if (idx >= 0) {
+          currentBlocks[idx] = { ...currentBlocks[idx], thinking: currentBlocks[idx].thinking + thinkingDelta };
+        } else {
+          currentBlocks.push({ type: 'thinking', thinking: thinkingDelta });
         }
-        return msg;
-      }));
-    }
+      }
+
+      // Upsert text block
+      if (textDelta) {
+        const idx = currentBlocks.findIndex((b: any) => b.type === 'text');
+        if (idx >= 0) {
+          currentBlocks[idx] = { ...currentBlocks[idx], text: currentBlocks[idx].text + textDelta };
+        } else {
+          currentBlocks.push({ type: 'text', text: textDelta });
+        }
+      }
+
+      return { ...msg, message: { ...msg.message!, content: currentBlocks } };
+    }));
   }, []);
 
   // Schedule RAF flush
   const scheduleFlush = useCallback(() => {
     if (!rafIdRef.current) {
-      rafIdRef.current = requestAnimationFrame(flushPendingDelta);
+      rafIdRef.current = requestAnimationFrame(flushPendingDeltas);
     }
-  }, [flushPendingDelta]);
+  }, [flushPendingDeltas]);
 
   // Start streaming helper
   const startStreaming = useCallback((messageId: string) => {
     setIsStreaming(true);
     setStreamingMessageId(messageId);
     streamingMessageIdRef.current = messageId;
-    pendingDeltaRef.current = '';
+    pendingTextRef.current = '';
+    pendingThinkingRef.current = '';
     onStreamStartRef.current?.(messageId);
   }, []);
 
   // End streaming helper
   const endStreaming = useCallback(() => {
     // Flush any remaining delta
-    if (pendingDeltaRef.current && streamingMessageIdRef.current) {
-      flushPendingDelta();
+    if ((pendingTextRef.current || pendingThinkingRef.current) && streamingMessageIdRef.current) {
+      flushPendingDeltas();
     }
     if (rafIdRef.current) {
       cancelAnimationFrame(rafIdRef.current);
@@ -143,7 +204,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     setIsStreaming(false);
     setStreamingMessageId(null);
     streamingMessageIdRef.current = null;
-  }, [flushPendingDelta, updateMessage]);
+  }, [flushPendingDeltas, updateMessage]);
 
   // addUserMessage - 로컬 상태 조작만 (bridge.send 하지 않음)
   const addUserMessage = useCallback((content: string, context?: Context[]) => {
@@ -167,7 +228,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       type: 'assistant',
       uuid: assistantMessageId,
       timestamp: new Date().toISOString(),
-      message: { role: 'assistant', content: '' } as any,
+      message: { role: 'assistant', content: [] } as any,
       isStreaming: true,
     };
     appendMessage(assistantMessage);
@@ -182,7 +243,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         let charIndex = 0;
         devModeIntervalRef.current = setInterval(() => {
           if (charIndex < mockResponse.length) {
-            pendingDeltaRef.current += mockResponse[charIndex];
+            pendingTextRef.current += mockResponse[charIndex];
             scheduleFlush();
             charIndex++;
           } else {
@@ -210,9 +271,12 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       // .filter(raw => raw.type === 'user' || raw.type === 'assistant')
       .map(raw => toInstance(LoadedMessageDto, raw));
 
-    setMessages(convertedMessages);
+    // Build active chain by tracing parentUuid from the last message
+    const activeMessages = filterActiveChain(convertedMessages);
+
+    setMessages(activeMessages);
     setError(null);
-    console.log('[useChatStream] Loaded messages:', convertedMessages.length);
+    console.log('[useChatStream] Loaded messages:', convertedMessages.length, '→ active chain:', activeMessages.length);
   }, []);
 
   // Retry
@@ -283,7 +347,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
             type: 'assistant',
             uuid: assistantMessageId,
             timestamp: new Date().toISOString(),
-            message: { role: 'assistant', content: '' } as any,
+            message: { role: 'assistant', content: [] } as any,
             isStreaming: true,
           };
           appendMessage(assistantMessage);
@@ -291,13 +355,12 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         }
 
         // RAF 기반 축적
-        pendingDeltaRef.current += delta.text as string;
+        pendingTextRef.current += delta.text as string;
         scheduleFlush();
       }
 
       // thinking_delta 처리
       if (delta && delta.type === 'thinking_delta' && delta.thinking) {
-        // thinking delta도 text_delta와 동일한 스트리밍 방식 사용
         // 첫 delta 시 streamingMessageId가 없으면 placeholder 자동 생성
         if (!streamingMessageIdRef.current) {
           const assistantMessageId = generateMessageId();
@@ -305,16 +368,15 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
             type: 'assistant',
             uuid: assistantMessageId,
             timestamp: new Date().toISOString(),
-            message: { role: 'assistant', content: '' } as any,
+            message: { role: 'assistant', content: [] } as any,
             isStreaming: true,
           };
           appendMessage(assistantMessage);
           startStreaming(assistantMessageId);
         }
 
-        // thinking delta는 별도로 축적하지 않고 로그만 남김
-        // (완성된 thinking 블록은 ASSISTANT_MESSAGE에서 처리됨)
-        console.log('[useChatStream] thinking_delta received');
+        pendingThinkingRef.current += delta.thinking as string;
+        scheduleFlush();
       }
 
       // tool_use_delta 처리 (추후 확장)
@@ -359,8 +421,8 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       const errorData = payload?.error as { code?: string; message?: string; details?: string } | null;
 
       // Flush 잔여 buffer
-      if (pendingDeltaRef.current && streamingMessageIdRef.current) {
-        flushPendingDelta();
+      if ((pendingTextRef.current || pendingThinkingRef.current) && streamingMessageIdRef.current) {
+        flushPendingDeltas();
       }
 
       // 에러 처리

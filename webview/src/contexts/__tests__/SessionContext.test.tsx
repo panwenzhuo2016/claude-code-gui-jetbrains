@@ -38,6 +38,14 @@ vi.mock('../ApiContext', () => ({
   useApi: () => mockApi,
 }));
 
+vi.mock('../../adapters', () => ({
+  getAdapter: () => ({
+    openNewTab: vi.fn().mockResolvedValue(undefined),
+    openSettings: vi.fn().mockResolvedValue(undefined),
+  }),
+  onBridgeReady: vi.fn(),
+}));
+
 // Test data
 const mockSessionDtos: SessionMetaDto[] = [
   {
@@ -77,11 +85,13 @@ describe('SessionContext', () => {
     mockSessionsLoad.mockResolvedValue(undefined);
     mockSessionsDestroy.mockResolvedValue(undefined);
     mockSessionsCreate.mockResolvedValue(undefined);
-    (window as any).workingDirectory = '/test/workspace';
+    // URL 파라미터로 workingDir 설정 (SSOT)
+    window.history.pushState({}, '', '?workingDir=/test/workspace');
   });
 
   afterEach(() => {
-    delete (window as any).workingDirectory;
+    // URL 파라미터 초기화
+    window.history.pushState({}, '', window.location.pathname);
   });
 
   it('loadSessions - API 호출 후 sessions 상태 업데이트', async () => {
@@ -231,6 +241,101 @@ describe('SessionContext', () => {
     await waitFor(() => {
       expect(capturedCtx?.currentSessionId).toBeNull();
       expect(capturedCtx?.sessionState).toBe('idle');
+    });
+  });
+
+  describe('workingDirectory - URL 파라미터 SSOT', () => {
+    it('URL ?workingDir= 파라미터에서 workingDirectory 초기화', async () => {
+      window.history.pushState({}, '', '?workingDir=/projects/my-app');
+
+      let capturedCtx: ReturnType<typeof useSessionContext> | null = null;
+
+      render(
+        <SessionProvider>
+          <TestConsumer onMount={(ctx) => { capturedCtx = ctx; }} />
+        </SessionProvider>
+      );
+
+      await waitFor(() => {
+        expect(capturedCtx?.workingDirectory).toBe('/projects/my-app');
+      });
+      expect(mockSetWorkingDir).toHaveBeenCalledWith('/projects/my-app');
+    });
+
+    it('URL에 workingDir 파라미터 없으면 workingDirectory는 null', async () => {
+      window.history.pushState({}, '', '/');
+
+      let capturedCtx: ReturnType<typeof useSessionContext> | null = null;
+
+      render(
+        <SessionProvider>
+          <TestConsumer onMount={(ctx) => { capturedCtx = ctx; }} />
+        </SessionProvider>
+      );
+
+      await waitFor(() => {
+        expect(capturedCtx?.workingDirectory).toBeNull();
+      });
+      expect(mockSetWorkingDir).not.toHaveBeenCalled();
+    });
+
+    it('workingDirectory 없으면 loadSessions 호출해도 API 요청 안 함', async () => {
+      window.history.pushState({}, '', '/');
+
+      let capturedCtx: ReturnType<typeof useSessionContext> | null = null;
+
+      render(
+        <SessionProvider>
+          <TestConsumer onMount={(ctx) => { capturedCtx = ctx; }} />
+        </SessionProvider>
+      );
+
+      await act(async () => {
+        await capturedCtx?.loadSessions();
+      });
+
+      expect(mockSessionsIndex).not.toHaveBeenCalled();
+    });
+
+    it('setWorkingDirectory 호출 시 URL 파라미터도 업데이트', async () => {
+      window.history.pushState({}, '', '/');
+
+      let capturedCtx: ReturnType<typeof useSessionContext> | null = null;
+
+      render(
+        <SessionProvider>
+          <TestConsumer onMount={(ctx) => { capturedCtx = ctx; }} />
+        </SessionProvider>
+      );
+
+      await act(async () => {
+        capturedCtx?.setWorkingDirectory('/new/project');
+      });
+
+      await waitFor(() => {
+        expect(capturedCtx?.workingDirectory).toBe('/new/project');
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('workingDir')).toBe('/new/project');
+      expect(mockSetWorkingDir).toHaveBeenCalledWith('/new/project');
+    });
+
+    it('URL에 인코딩된 경로가 있어도 정상 디코딩', async () => {
+      // URLEncoder.encode()로 인코딩된 경로 시뮬레이션
+      window.history.pushState({}, '', '?workingDir=%2FUsers%2Fuser%2FMy%20Project');
+
+      let capturedCtx: ReturnType<typeof useSessionContext> | null = null;
+
+      render(
+        <SessionProvider>
+          <TestConsumer onMount={(ctx) => { capturedCtx = ctx; }} />
+        </SessionProvider>
+      );
+
+      await waitFor(() => {
+        expect(capturedCtx?.workingDirectory).toBe('/Users/user/My Project');
+      });
     });
   });
 });

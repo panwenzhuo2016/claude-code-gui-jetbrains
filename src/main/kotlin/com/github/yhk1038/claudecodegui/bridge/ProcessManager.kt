@@ -49,7 +49,7 @@ class ProcessManager(
      * Start the Claude CLI process
      * @param sessionId Optional session ID to use for this conversation
      */
-    suspend fun start(sessionId: String? = null, workingDir: String? = null) = withContext(Dispatchers.IO) {
+    suspend fun start(sessionId: String? = null, workingDir: String? = null, permissionMode: PermissionMode? = null) = withContext(Dispatchers.IO) {
         if (isRunning) {
             logger.warn("Process already running")
             return@withContext
@@ -68,6 +68,12 @@ class ProcessManager(
                 addParameter("stream-json")
                 addParameter("--verbose")
                 addParameter("--include-partial-messages")
+
+                // Permission mode flag
+                if (permissionMode != null) {
+                    addParameter("--permission-mode")
+                    addParameter(permissionMode.cliFlag)
+                }
 
                 // Set session ID if provided (WebView-generated)
                 if (sessionId != null) {

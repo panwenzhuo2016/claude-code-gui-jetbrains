@@ -53,6 +53,7 @@ class WebViewBridge(
     private var streamParser: StreamParser? = null
     private var parserJob: Job? = null
     private var isServiceRunning = false
+    private var currentPermissionMode: PermissionMode? = null
 
     init {
         setupCliListeners()
@@ -70,7 +71,7 @@ class WebViewBridge(
     /**
      * Start a per-tab CLI process
      */
-    private suspend fun startCliProcess(sessionId: String? = null, workingDir: String? = null): Result<Unit> {
+    private suspend fun startCliProcess(sessionId: String? = null, workingDir: String? = null, permissionMode: PermissionMode? = null): Result<Unit> {
         if (isServiceRunning) {
             logger.info("CLI process already running for this tab")
             return Result.success(Unit)
@@ -134,7 +135,7 @@ class WebViewBridge(
             }
         }
 
-        manager.start(sessionId, workingDir)
+        manager.start(sessionId, workingDir, permissionMode)
         isServiceRunning = true
 
         logger.info("Per-tab CLI process started successfully (sessionId=$sessionId, workingDir=$workingDir)")
@@ -241,6 +242,8 @@ class WebViewBridge(
         val sessionId = payload["sessionId"]?.jsonPrimitive?.content
         val isNewSession = payload["isNewSession"]?.jsonPrimitive?.boolean ?: false
         val workingDir = payload["workingDir"]?.jsonPrimitive?.contentOrNull
+        val inputMode = payload["inputMode"]?.jsonPrimitive?.contentOrNull
+        val permissionMode = PermissionMode.fromInputMode(inputMode)
 
         // Update current session ID from WebView
         if (sessionId != null) {
@@ -252,13 +255,30 @@ class WebViewBridge(
         // Lazy-start: start per-tab CLI process if not running
         if (!isServiceRunning) {
             logger.info("Per-tab CLI process not running, starting automatically...")
-            val startResult = startCliProcess(sessionId, workingDir)
+            val startResult = startCliProcess(sessionId, workingDir, permissionMode)
             if (startResult.isFailure) {
                 return buildJsonObject {
                     put("status", "error")
                     put("error", "Failed to start CLI process: ${startResult.exceptionOrNull()?.message}")
                 }
             }
+            currentPermissionMode = permissionMode
+        } else if (permissionMode != null && permissionMode != currentPermissionMode) {
+            // Permission mode changed - restart CLI process
+            logger.info("Permission mode changed from $currentPermissionMode to $permissionMode, restarting CLI process...")
+            broadcastOrSend("RESULT_MESSAGE", mapOf(
+                "status" to "mode_changed",
+                "reason" to "Permission mode changed, restarting CLI process"
+            ))
+            stopCliProcess()
+            val startResult = startCliProcess(sessionId, workingDir, permissionMode)
+            if (startResult.isFailure) {
+                return buildJsonObject {
+                    put("status", "error")
+                    put("error", "Failed to restart CLI process: ${startResult.exceptionOrNull()?.message}")
+                }
+            }
+            currentPermissionMode = permissionMode
         }
 
         sendCliMessage(message)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, KeyboardEvent, useState } from 'react';
+import { useCallback, useEffect, useRef, KeyboardEvent, useState } from 'react';
 import { CommandPalettePanel } from '@/commandPalette/ui/CommandPalettePanel';
 import { useCommandPalette } from '@/commandPalette/hooks/useCommandPalette';
 import { INPUT_MODES } from '../../types/chatInput';
@@ -12,11 +12,13 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { useChatStreamContext } from '@/contexts/ChatStreamContext';
 import { SettingKey } from '@/types/settings';
+import { getTextContent } from '@/types';
 
 export function ChatInput() {
   const { textareaRef } = useChatInputFocus();
   const { currentSessionId, sessionState, workingDirectory } = useSessionContext();
   const {
+    messages,
     input: value,
     setInput: onChange,
     handleSubmit: onSubmit,
@@ -27,6 +29,7 @@ export function ChatInput() {
   } = useChatStreamContext();
   const inputHistory = useInputHistory();
   const [isFocused, setIsFocused] = useState(false);
+  const lastInitSessionRef = useRef<string | undefined>(undefined);
   const { settings } = useSettings();
 
   const disabled = sessionState === 'error' || !workingDirectory;
@@ -73,6 +76,20 @@ export function ChatInput() {
     };
   }, [textareaRef]);
 
+  // Populate input history from session messages on session change
+  useEffect(() => {
+    if (!currentSessionId || currentSessionId === lastInitSessionRef.current) return;
+    if (messages.length === 0) return;
+
+    lastInitSessionRef.current = currentSessionId;
+
+    const userTexts = messages
+      .filter(m => m.type === 'user')
+      .map(m => getTextContent(m))
+      .filter((t): t is string => Boolean(t));
+    inputHistory.initHistory(userTexts);
+  }, [currentSessionId, messages, inputHistory]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Shift+Tab: 모드 전환
     if (e.shiftKey && e.key === 'Tab') {
@@ -92,11 +109,19 @@ export function ChatInput() {
         onSubmit(undefined, mode);
       }
     } else if (e.key === 'ArrowUp' && !palette.showSlashCommands) {
+      // 복수행: 커서가 첫 번째 줄에 있을 때만 히스토리 탐색
+      const pos = e.currentTarget.selectionStart;
+      if (value.lastIndexOf('\n', pos - 1) !== -1) return;
+
       const historyValue = inputHistory.navigateUp(value);
       if (historyValue === null) return;
       e.preventDefault();
       onChange(historyValue);
     } else if (e.key === 'ArrowDown' && !palette.showSlashCommands) {
+      // 복수행: 커서가 마지막 줄에 있을 때만 히스토리 탐색
+      const pos = e.currentTarget.selectionStart;
+      if (value.indexOf('\n', pos) !== -1) return;
+
       const historyValue = inputHistory.navigateDown();
       if (historyValue === null) return;
       e.preventDefault();
@@ -111,7 +136,7 @@ export function ChatInput() {
   }, [onChange, palette]);
 
   return (
-    <div className="max-w-[44rem] mx-auto px-3 pb-3 pt-2">
+    <div className="max-w-[44rem] mx-auto px-4 pb-[14px] pt-2">
       {/* 메인 인풋 컨테이너 */}
       <div
         className={`
@@ -155,7 +180,7 @@ export function ChatInput() {
         <div className="border-t border-zinc-700/50" />
 
         {/* 하단 바: 모드 태그 + 파일 태그 + 액션 버튼 */}
-        <div className="flex items-center justify-between pl-2 pr-1 py-1">
+        <div className="flex items-center justify-between px-[5px] py-[3px] h-[35px]">
           {/* 좌측: 모드 태그 + 파일 태그들 */}
           <div className="flex items-center gap-4">
             <InputModeTag mode={mode} onClick={cycleMode} />

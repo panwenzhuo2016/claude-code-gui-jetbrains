@@ -28,35 +28,37 @@ export function ActionButtons({
   const config = INPUT_MODES[mode];
 
   return (
-    <div className="flex items-center gap-4">
-      {/* 클립(첨부) 버튼 */}
-      <button
-        type="button"
-        className="text-zinc-500 hover:text-zinc-400 transition-colors"
-        onClick={onAttach}
-        title="Attach file"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-        </svg>
-      </button>
+    <div className="flex items-center gap-1.5 pb-[1px]">
+      <div className="flex items-center gap-0.5">
+        {/* 클립(첨부) 버튼 */}
+        <button
+            type="button"
+            className="flex items-center justify-center w-6 h-6 rounded-full text-zinc-500 hover:text-zinc-400 hover:bg-white/10"
+            onClick={onAttach}
+            title="Attach file"
+        >
+          <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
 
-      {/* 슬래시 커맨드 버튼 */}
-      <button
-        type="button"
-        className="text-zinc-500 hover:text-zinc-400 transition-colors text-sm font-medium"
-        onClick={onSlashCommand}
-        title="Slash commands"
-      >
-        /
-      </button>
+        {/* 슬래시 커맨드 버튼 */}
+        <button
+            type="button"
+            className="flex items-center justify-center w-6 h-6 rounded-full text-zinc-500 hover:text-zinc-400 hover:bg-white/10 text-sm font-medium"
+            onClick={onSlashCommand}
+            title="Slash commands"
+        >
+          /
+        </button>
+      </div>
 
       {/* 전송/정지/계속 버튼 */}
       {isStreaming && onStop ? (
         <button
           type="button"
           onClick={onStop}
-          className="flex items-center justify-center w-7 h-7 rounded-md bg-red-500 hover:bg-red-400 text-white transition-colors"
+          className="flex items-center justify-center w-[26px] h-[26px] rounded-md bg-red-500 hover:bg-red-400 text-white transition-colors"
           title="Stop generating"
         >
           <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
@@ -67,7 +69,7 @@ export function ActionButtons({
         <button
           type="button"
           onClick={onContinue}
-          className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-500 hover:bg-blue-400 text-white transition-colors"
+          className="flex items-center justify-center w-[26px] h-[26px] rounded-md bg-blue-500 hover:bg-blue-400 text-white transition-colors"
           title="Continue generating"
         >
           <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
@@ -80,7 +82,7 @@ export function ActionButtons({
           onClick={onSubmit}
           disabled={disabled || isStreaming || !hasValue}
           className={`
-            flex items-center justify-center w-7 h-7 rounded-md transition-all
+            flex items-center justify-center w-[26px] h-[26px] rounded-md transition-all
             ${config.sendButtonBg} text-white
             ${disabled || isStreaming || !hasValue
               ? 'opacity-40 cursor-not-allowed'

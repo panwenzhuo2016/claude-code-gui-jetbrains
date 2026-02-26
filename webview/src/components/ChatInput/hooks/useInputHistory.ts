@@ -4,6 +4,7 @@ interface UseInputHistoryReturn {
   pushToHistory: (value: string) => void;
   navigateUp: (currentValue: string) => string | null;
   navigateDown: () => string | null;
+  initHistory: (entries: string[]) => void;
   isEmpty: boolean;
   isNavigating: boolean;
 }
@@ -15,6 +16,12 @@ export function useInputHistory(): UseInputHistoryReturn {
 
   const pushToHistory = useCallback((value: string) => {
     setHistory((prev) => [...prev, value]);
+    setHistoryIndex(-1);
+    setUnsavedDraft('');
+  }, []);
+
+  const initHistory = useCallback((entries: string[]) => {
+    setHistory(entries);
     setHistoryIndex(-1);
     setUnsavedDraft('');
   }, []);
@@ -51,6 +58,7 @@ export function useInputHistory(): UseInputHistoryReturn {
     pushToHistory,
     navigateUp,
     navigateDown,
+    initHistory,
     isEmpty: history.length === 0,
     isNavigating: historyIndex !== -1,
   };

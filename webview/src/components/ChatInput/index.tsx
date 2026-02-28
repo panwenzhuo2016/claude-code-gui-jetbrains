@@ -147,7 +147,7 @@ export function ChatInput() {
       >
         {/* Slash command panel */}
         {palette.showSlashCommands && (
-          <div className="absolute bottom-full left-0 mb-2 w-full z-20">
+          <div className="absolute bottom-full left-0 w-full z-20">
             <CommandPalettePanel
               sections={palette.filteredSections}
               selectedSectionIndex={palette.selectedSectionIndex}

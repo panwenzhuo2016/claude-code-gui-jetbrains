@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useAccountData } from './useAccountData';
 import { SectionLabel } from './SectionLabel';
-import { InfoRow } from './InfoRow';
+import { InfoRow, InfoRowSkeleton } from './InfoRow';
 import { UsageSection } from "./UsageSection";
 
 interface AccountUsageModalProps {
@@ -10,7 +10,7 @@ interface AccountUsageModalProps {
 }
 
 export function AccountUsageModal({ onClose }: AccountUsageModalProps) {
-  const { data: accountData } = useAccountData();
+  const { data: accountData, isLoading: accountLoading } = useAccountData();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -47,9 +47,19 @@ export function AccountUsageModal({ onClose }: AccountUsageModalProps) {
           {/* ACCOUNT section */}
           <div>
             <SectionLabel>Account</SectionLabel>
-            <InfoRow label="Auth method" value={accountData?.authMethod ?? null} />
-            <InfoRow label="Email" value={accountData?.email ?? null} />
-            <InfoRow label="Plan" value={accountData?.plan ?? null} />
+            {accountLoading && !accountData ? (
+              <>
+                <InfoRowSkeleton />
+                <InfoRowSkeleton />
+                <InfoRowSkeleton />
+              </>
+            ) : (
+              <>
+                <InfoRow label="Auth method" value={accountData?.authMethod ?? null} />
+                <InfoRow label="Email" value={accountData?.email ?? null} />
+                <InfoRow label="Plan" value={accountData?.plan ?? null} />
+              </>
+            )}
           </div>
 
           {/* USAGE section */}

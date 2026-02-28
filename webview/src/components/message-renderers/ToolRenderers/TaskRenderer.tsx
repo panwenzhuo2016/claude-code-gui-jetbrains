@@ -21,7 +21,6 @@ export function TaskRenderer(props: RendererProps) {
 
     // Extract tool_use blocks from sub-agent messages
     // Build a sub-agent toolUseMap for merging tool_results
-    const subAgentToolUses: ToolUseBlockDto[] = [];
     const subAgentToolUseMap = new Map<string, ToolUseBlockDto>();
 
     for (const msg of subAgentMessages) {
@@ -29,7 +28,6 @@ export function TaskRenderer(props: RendererProps) {
             for (const block of msg.content) {
                 if (block.type === 'tool_use') {
                     const tuBlock = block as ToolUseBlockDto;
-                    subAgentToolUses.push(tuBlock);
                     subAgentToolUseMap.set(tuBlock.id, tuBlock);
                 }
             }
@@ -56,7 +54,7 @@ export function TaskRenderer(props: RendererProps) {
         }
     }
 
-    const hasSubAgentMessages = subAgentToolUses.length > 0;
+    const hasSubAgentMessages = subAgentToolUseMap.size > 0;
 
     return (
         <>
@@ -82,7 +80,7 @@ export function TaskRenderer(props: RendererProps) {
             {/* Sub-agent tool calls (expandable) */}
             {hasSubAgentMessages && (
                 <>
-                    {subAgentToolUses.map((tu) => (
+                    {Array.from(subAgentToolUseMap.values()).map((tu) => (
                         <ToolRenderer key={tu.id} toolUse={tu} message={props.message} />
                     ))}
                 </>

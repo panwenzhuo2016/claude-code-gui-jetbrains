@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.github.yhk1038"
-version = "0.4.2"
+version = "0.5.0"
 
 repositories {
     mavenCentral()
@@ -44,6 +44,17 @@ intellijPlatform {
             untilBuild = "253.*"
         }
         changeNotes = """
+            <h3>0.5.0 - Unified Node.js Backend &amp; Account Dashboard</h3>
+            <ul>
+                <li>Migrated to single Node.js backend architecture (replaced dual Kotlin/dev-bridge)</li>
+                <li>Added Account &amp; Usage modal with real-time plan usage display</li>
+                <li>Dynamic version display showing both Plugin and Claude Code CLI versions</li>
+                <li>Skeleton UI loading states for Account section</li>
+                <li>Global thinking block expand/collapse state via ChatStreamContext</li>
+                <li>Accurate UsageMeter reset time display</li>
+                <li>Cross-version compatibility fix (removed CefContextMenuHandler)</li>
+                <li>Refactored CommandPalettePanel into separate component files</li>
+            </ul>
             <h3>0.4.2 - Compatibility Fix</h3>
             <ul>
                 <li>Remove CefContextMenuHandler to resolve cross-version compatibility (DevTools via F12 only)</li>

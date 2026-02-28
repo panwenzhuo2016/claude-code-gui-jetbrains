@@ -22,7 +22,9 @@ function getCliVersion(): Promise<string | null> {
         resolve(null);
         return;
       }
-      resolve(stdout.trim());
+      const raw = stdout.trim();
+      const match = raw.match(/^[\d.]+/);
+      resolve(match ? match[0] : raw);
     });
   });
 }

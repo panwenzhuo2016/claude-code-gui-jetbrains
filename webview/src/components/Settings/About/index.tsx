@@ -1,8 +1,10 @@
 import { SettingSection, SettingRow } from '../common';
 import { ROUTE_META, Route } from '@/router/routes';
+import { useVersionInfo } from '@/hooks/useVersionInfo';
 
 export function AboutSettings() {
   const meta = ROUTE_META[Route.SETTINGS_ABOUT];
+  const { pluginVersion, cliVersion } = useVersionInfo();
 
   return (
     <div>
@@ -10,11 +12,11 @@ export function AboutSettings() {
 
       <SettingSection title="Version Information">
         <SettingRow label="Plugin Version">
-          <span className="text-sm text-zinc-400">0.1.0</span>
+          <span className="text-sm text-zinc-400">{pluginVersion}</span>
         </SettingRow>
 
-        <SettingRow label="WebView Version">
-          <span className="text-sm text-zinc-400">1.0.0</span>
+        <SettingRow label="Claude Code Version">
+          <span className="text-sm text-zinc-400">{cliVersion ?? 'not detected'}</span>
         </SettingRow>
       </SettingSection>
 

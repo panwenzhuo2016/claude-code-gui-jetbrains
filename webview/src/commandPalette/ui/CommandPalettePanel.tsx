@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { PanelSection, PanelItem, ToggleItem, PanelItemType, IconType } from '@/types/commandPalette';
 import { ToggleSwitch } from '@/components/ToggleSwitch';
 import { TerminalIcon, LinkIcon } from './icons/PaletteIcons';
+import { useVersionInfo } from '@/hooks/useVersionInfo';
 
 interface CommandPalettePanelProps {
   sections: PanelSection[];
@@ -22,6 +23,7 @@ export const CommandPalettePanel: React.FC<CommandPalettePanelProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const { pluginVersion, cliVersion } = useVersionInfo();
 
   // Auto-scroll selected item into view
   useEffect(() => {
@@ -83,7 +85,7 @@ export const CommandPalettePanel: React.FC<CommandPalettePanelProps> = ({
           Report a problem
         </a>
         <div className="text-zinc-400/80">
-          v0.0.0
+          {cliVersion ? `v${pluginVersion} · Claude Code ${cliVersion}` : `v${pluginVersion}`}
         </div>
       </div>
     </div>

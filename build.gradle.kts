@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.github.yhk1038"
-version = "0.5.0"
+version = "0.6.0"
 
 repositories {
     mavenCentral()
@@ -44,6 +44,21 @@ intellijPlatform {
             untilBuild = "253.*"
         }
         changeNotes = """
+            <h3>0.6.0 - Streaming Stability &amp; Rich Tool Rendering</h3>
+            <ul>
+                <li>Context window usage bar in status bar with /compact click integration</li>
+                <li>ESC key interrupt support with immediate interrupted message display</li>
+                <li>Dynamic slash command loading with auto-reset on session switch</li>
+                <li>CLI error propagation and session crash recovery</li>
+                <li>Image attachment via clipboard paste, drag-and-drop, and file picker</li>
+                <li>Inline diff view for Edit tool blocks</li>
+                <li>Sub-agent tool call rendering inside Task blocks</li>
+                <li>Fix streaming tool block loss and error handling improvements</li>
+                <li>Fix sessions without slug/file-history-snapshot missing from dropdown</li>
+                <li>Fix ESM bundle Node.js built-in module require failure</li>
+                <li>Remove dead PermissionMode code; merge Default Input Mode into Permissions tab</li>
+                <li>Fix CommandPalette panel positioning and sizing</li>
+            </ul>
             <h3>0.5.0 - Unified Node.js Backend &amp; Account Dashboard</h3>
             <ul>
                 <li>Migrated to single Node.js backend architecture (replaced dual Kotlin/dev-bridge)</li>

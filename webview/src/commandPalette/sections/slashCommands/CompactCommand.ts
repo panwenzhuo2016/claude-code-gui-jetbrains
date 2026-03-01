@@ -1,4 +1,5 @@
 import { SlashCommand } from '../../types';
+import { InputModeValues } from '@/types/chatInput';
 
 export class CompactCommand extends SlashCommand {
   readonly id = 'cmd-compact';
@@ -6,6 +7,8 @@ export class CompactCommand extends SlashCommand {
   readonly description = 'Compact conversation';
 
   async execute(): Promise<void> {
-    console.log('[CompactCommand] /compact - not yet implemented');
+    const { chatStream, session } = this.getServices();
+    if (!session.currentSessionId) return;
+    chatStream.sendMessage(this.label, InputModeValues.AUTO_EDIT);
   }
 }

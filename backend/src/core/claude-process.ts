@@ -311,6 +311,8 @@ function handleStreamEvent(
       connections.broadcastToSession(targetSessionId, 'ASSISTANT_MESSAGE', {
         messageId: message?.id,
         content: message?.content ?? [],
+        model: message?.model ?? null,
+        usage: message?.usage ?? null,
       });
       break;
     }
@@ -330,6 +332,8 @@ function handleStreamEvent(
               details: errorField.details,
             }
           : null,
+        usage: event.usage ?? null,
+        model: event.model ?? null,
       });
       // 세션 목록 갱신 알림 (모든 탭)
       connections.broadcastToAll('SESSIONS_UPDATED', {

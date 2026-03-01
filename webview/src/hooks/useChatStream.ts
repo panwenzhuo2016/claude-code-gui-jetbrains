@@ -48,6 +48,7 @@ export interface UseChatStreamReturn {
   /** 스트림 관련 모든 내부 상태를 초기화 (clear conversation 등에서 사용) */
   resetStreamState: () => void;
   systemInit: Record<string, unknown> | null;
+  contextWindowUsage: { inputTokens: number; outputTokens: number; model: string | null } | null;
 }
 
 /**
@@ -95,6 +96,11 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [systemInit, setSystemInit] = useState<Record<string, unknown> | null>(null);
+  const [contextWindowUsage, setContextWindowUsage] = useState<{
+    inputTokens: number;
+    outputTokens: number;
+    model: string | null;
+  } | null>(null);
 
   // RAF 스로틀링 관련 refs
   const pendingTextRef = useRef<string>('');
@@ -422,6 +428,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   const resetStreamState = useCallback(() => {
     setIsStopped(false);
     setSystemInit(null);
+    setContextWindowUsage(null);
     setIsStreaming(false);
     setStreamingMessageId(null);
     streamingMessageIdRef.current = null;
@@ -565,6 +572,15 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       const payload = message.payload;
       const messageId = payload?.messageId as string;
       const incomingContent = payload?.content;
+      const assistantModel = payload?.model as string | null;
+      const assistantUsage = payload?.usage as { input_tokens?: number; output_tokens?: number } | null;
+      if (assistantUsage && typeof assistantUsage.input_tokens === 'number') {
+        setContextWindowUsage({
+          inputTokens: assistantUsage.input_tokens,
+          outputTokens: assistantUsage.output_tokens ?? 0,
+          model: assistantModel,
+        });
+      }
 
       if (!incomingContent || !Array.isArray(incomingContent)) return;
       const finalTurnBlocks = incomingContent as AnyContentBlockDto[];
@@ -638,6 +654,17 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         const err = new Error(errorData.message || 'Unknown error');
         setError(err);
         onErrorRef.current?.(err);
+      }
+
+      // Context window usage 추출
+      const usageData = payload?.usage as { input_tokens?: number; output_tokens?: number } | null;
+      const modelStr = payload?.model as string | null;
+      if (usageData && typeof usageData.input_tokens === 'number') {
+        setContextWindowUsage({
+          inputTokens: usageData.input_tokens,
+          outputTokens: usageData.output_tokens ?? 0,
+          model: modelStr,
+        });
       }
 
       // 스트리밍 종료
@@ -749,5 +776,6 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     continue: continueGeneration,
     resetStreamState,
     systemInit,
+    contextWindowUsage,
   };
 }

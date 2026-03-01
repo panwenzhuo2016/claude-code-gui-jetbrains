@@ -44,6 +44,9 @@ interface ChatStreamContextType {
   // Session lifecycle
   systemInit: Record<string, unknown> | null;
   resetForSessionSwitch: () => void;
+
+  // Context window usage
+  contextWindowUsage: { inputTokens: number; outputTokens: number; model: string | null } | null;
 }
 
 const ChatStreamContext = createContext<ChatStreamContextType | undefined>(undefined);
@@ -284,6 +287,9 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     // Session lifecycle
     systemInit: chatStream.systemInit,
     resetForSessionSwitch,
+
+    // Context window usage
+    contextWindowUsage: chatStream.contextWindowUsage,
   };
 
   return (

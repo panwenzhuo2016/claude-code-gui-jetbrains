@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, KeyboardEvent, useState } from 'react';
 import { CommandPalettePanel } from '@/commandPalette/ui/CommandPalettePanel';
 import { useCommandPalette } from '@/commandPalette/hooks/useCommandPalette';
+import { PanelSectionId, PanelItemType, CommandItem } from '@/types/commandPalette';
 import { INPUT_MODES } from '../../types/chatInput';
 import { useInputMode } from './hooks/useInputMode';
 import { InputModeTag } from './InputModeTag';
@@ -15,6 +16,7 @@ import { SettingKey } from '@/types/settings';
 import { getTextContent } from '@/types';
 import { useAttachments } from './hooks/useAttachments';
 import { AttachmentPreview } from './AttachmentPreview';
+import { ContextWindowTag } from './ContextWindowTag';
 
 export function ChatInput() {
   const { textareaRef } = useChatInputFocus();
@@ -55,6 +57,14 @@ export function ChatInput() {
   const modeConfig = INPUT_MODES[mode];
 
   const palette = useCommandPalette({ onChange, textareaRef });
+
+  const handleCompact = useCallback(() => {
+    const slashSection = palette.sections.find(s => s.id === PanelSectionId.SlashCommands);
+    const compactItem = slashSection?.items.find(item => item.label === '/compact');
+    if (compactItem?.type === PanelItemType.Command) {
+      (compactItem as CommandItem).action();
+    }
+  }, [palette.sections]);
 
   // Auto-resize textarea
   useTextareaAutoResize({ textareaRef, value });
@@ -309,6 +319,7 @@ export function ChatInput() {
           {/* 좌측: 모드 태그 + 파일 태그들 */}
           <div className="flex items-center gap-4">
             <InputModeTag mode={mode} onClick={cycleMode} />
+            <ContextWindowTag onClick={handleCompact} />
           </div>
 
           {/* 우측: 액션 버튼들 */}

@@ -202,10 +202,23 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
   const stop = useCallback(() => {
     console.log('[ChatStreamContext] Stopping session');
 
+    // Determine interrupt type based on current session state
+    const interruptText = session.sessionState === 'waiting_permission'
+      ? '[Request interrupted by user for tool use]'
+      : '[Request interrupted by user]';
+
+    // Add interrupted message immediately to chat
+    chatStream.appendMessage({
+      type: 'user',
+      uuid: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      message: { role: 'user', content: interruptText } as LoadedMessageDto['message'],
+    });
+
     // Stop local streaming
     chatStream.stop();
 
-    // Send stop signal to Kotlin (correct handler: STOP_SESSION, not STOP_STREAMING)
+    // Send stop signal to backend
     bridge.send('STOP_SESSION', {}).catch((error) => {
       console.error('[ChatStreamContext] Failed to stop session:', error);
     });

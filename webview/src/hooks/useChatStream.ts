@@ -410,9 +410,8 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
   // Stop
   const stop = useCallback(() => {
-    setIsStopped(true);
-    setIsStreaming(false);
-  }, []);
+    endStreaming();
+  }, [endStreaming]);
 
   // Continue
   const continueGeneration = useCallback(() => {

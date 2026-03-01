@@ -102,6 +102,21 @@ export function ChatInput() {
     }
   }, [currentSessionId, clearAttachments, inputHistory]);
 
+  // ESC key: interrupt streaming
+  useEffect(() => {
+    const handleEscKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape' && isStreaming) {
+        e.preventDefault();
+        onStop();
+        // Re-focus textarea after interrupt
+        setTimeout(() => textareaRef.current?.focus(), 50);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscKey);
+    return () => window.removeEventListener('keydown', handleEscKey);
+  }, [isStreaming, onStop, textareaRef]);
+
   // Populate input history from session messages on session change
   useEffect(() => {
     if (!currentSessionId || currentSessionId === lastInitSessionRef.current) return;

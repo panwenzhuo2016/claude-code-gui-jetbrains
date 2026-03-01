@@ -151,6 +151,7 @@ export function sendMessageToProcess(
   connections: ConnectionManager,
   sessionId: string,
   content: string,
+  attachments?: Array<{ fileName: string; mimeType: string; base64: string }>,
 ): boolean {
   const session = connections.getSession(sessionId);
   if (!session?.process?.stdin?.writable) {
@@ -158,13 +159,39 @@ export function sendMessageToProcess(
     return false;
   }
 
+  // Build message content: string if no attachments, ContentBlock[] if attachments
+  let messageContent: string | Array<Record<string, unknown>>;
+  if (attachments && attachments.length > 0) {
+    const blocks: Array<Record<string, unknown>> = [];
+    if (content) {
+      blocks.push({ type: 'text', text: content });
+    }
+    for (const att of attachments) {
+      blocks.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: att.mimeType,
+          data: att.base64,
+        },
+      });
+    }
+    messageContent = blocks;
+  } else {
+    messageContent = content;
+  }
+
   const stdinMessage =
     JSON.stringify({
       type: 'user',
-      message: { role: 'user', content },
+      message: { role: 'user', content: messageContent },
     }) + '\n';
 
-  console.error('[node-backend]', `Sending to stdin: ${stdinMessage.trimEnd()}`);
+  // Truncate log to avoid flooding with base64 data
+  const logPreview = stdinMessage.length > 200
+    ? stdinMessage.substring(0, 200) + `... (${stdinMessage.length} bytes total)`
+    : stdinMessage.trimEnd();
+  console.error('[node-backend]', `Sending to stdin: ${logPreview}`);
   session.process.stdin.write(stdinMessage);
   return true;
 }

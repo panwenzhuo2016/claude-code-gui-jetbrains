@@ -4,7 +4,7 @@ import { useDiffs } from '../hooks/useDiffs';
 import { useTools } from '../hooks/useTools';
 import { useBridgeContext } from './BridgeContext';
 import { useSessionContext } from './SessionContext';
-import { LoadedMessageDto, Context } from '../types';
+import { LoadedMessageDto, Context, Attachment, AttachmentPayload } from '../types';
 import { InputMode } from '../types/chatInput';
 
 interface ChatStreamContextType {
@@ -20,8 +20,8 @@ interface ChatStreamContextType {
   setInput: (input: string) => void;
 
   // Actions
-  sendMessage: (content: string, inputMode: InputMode, context?: Context[]) => void;
-  handleSubmit: (e: React.FormEvent | undefined, inputMode: InputMode) => void;
+  sendMessage: (content: string, inputMode: InputMode, context?: Context[], attachments?: Attachment[]) => void;
+  handleSubmit: (e: React.FormEvent | undefined, inputMode: InputMode, attachments?: Attachment[]) => void;
   stop: () => void;
   continue: () => void;
   retry: (messageId: string) => void;
@@ -123,7 +123,7 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
 
   // sendMessage: add to local state + send to Kotlin + create session if needed
   const sendMessage = useCallback(
-    (content: string, inputMode: InputMode, context?: Context[]) => {
+    (content: string, inputMode: InputMode, context?: Context[], attachments?: Attachment[]) => {
       // Resolve session ID: use existing or generate new one
       let sessionId = session.currentSessionId;
       const isNewSession = !sessionId;
@@ -135,13 +135,18 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
       }
 
       // Add to local chat state
-      chatStream.addUserMessage(content, context);
+      chatStream.addUserMessage(content, context, attachments);
 
       // Send to bridge with sessionId
       bridge.send('SEND_MESSAGE', {
         sessionId,
         isNewSession,
         content,
+        attachments: attachments?.map((a): AttachmentPayload => ({
+          fileName: a.fileName,
+          mimeType: a.mimeType,
+          base64: a.base64,
+        })),
         context: context || [],
         workingDir: session.workingDirectory,
         inputMode,
@@ -158,15 +163,11 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
 
   // handleSubmit: convenience wrapper for form submission
   const handleSubmit = useCallback(
-    (e: React.FormEvent | undefined, inputMode: InputMode) => {
-      if (e) {
-        e.preventDefault();
-      }
-
+    (e: React.FormEvent | undefined, inputMode: InputMode, attachments?: Attachment[]) => {
+      if (e) e.preventDefault();
       const trimmedInput = input.trim();
-      if (!trimmedInput) return;
-
-      sendMessage(trimmedInput, inputMode, undefined);
+      if (!trimmedInput && (!attachments || attachments.length === 0)) return;
+      sendMessage(trimmedInput, inputMode, undefined, attachments);
       setInput('');
     },
     [input, sendMessage]

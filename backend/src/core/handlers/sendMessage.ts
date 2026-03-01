@@ -15,15 +15,20 @@ export async function sendMessageHandler(
   const msgSessionId = message.payload?.sessionId as string | undefined;
   const inputMode = message.payload?.inputMode as string;
   const resolvedSessionId = msgSessionId || generateSessionId();
+  const attachments = message.payload?.attachments as Array<{
+    fileName: string;
+    mimeType: string;
+    base64: string;
+  }> | undefined;
 
   try {
-    if (content) {
+    if (content || (attachments && attachments.length > 0)) {
       // Subscribe and ensure process is running (waits for spawn)
       connections.subscribe(connectionId, resolvedSessionId);
       await ensureClaudeProcess(connections, connectionId, workingDir, resolvedSessionId, inputMode);
 
       // Send content to process stdin
-      sendMessageToProcess(connections, resolvedSessionId, content);
+      sendMessageToProcess(connections, resolvedSessionId, content, attachments);
 
       // Broadcast user message to other subscribers (excluding sender)
       connections.broadcastToSession(resolvedSessionId, 'USER_MESSAGE_BROADCAST', {

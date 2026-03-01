@@ -1,5 +1,6 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Context, getTextContent, LoadedMessageDto } from '../types';
+import { Context, getTextContent, LoadedMessageDto, Attachment } from '../types';
+import type { TextBlockDto, ImageBlockDto, ImageSourceDto, AnyContentBlockDto } from '../dto/message/ContentBlockDto';
 import { toInstance } from '../dto/common';
 
 /** Re-export for backwards compatibility */
@@ -30,7 +31,7 @@ export interface UseChatStreamReturn {
   error: Error | null;
 
   // 로컬 메시지 조작 (전송은 하지 않음)
-  addUserMessage: (content: string, context?: Context[]) => void;
+  addUserMessage: (content: string, context?: Context[], attachments?: Attachment[]) => void;
   clearMessages: () => void;
   loadMessages: (msgs: LoadedMessageDto[]) => void;
   appendMessage: (message: LoadedMessageDto) => void;
@@ -213,17 +214,42 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   }, [flushPendingDeltas, updateMessage]);
 
   // addUserMessage - 로컬 상태 조작만 (bridge.send 하지 않음)
-  const addUserMessage = useCallback((content: string, context?: Context[]) => {
-    if (!content.trim() || isStreaming) return;
+  const addUserMessage = useCallback((content: string, context?: Context[], attachments?: Attachment[]) => {
+    if (!content.trim() && (!attachments || attachments.length === 0)) return;
+    if (isStreaming) return;
 
     setError(null);
+
+    // Build content: string if no attachments, ContentBlock[] if attachments
+    // isContentBlockArray() type guard는 duck-typing이므로 plain object도 통과한다.
+    // ImageAttachments 컴포넌트도 속성 접근만 하므로 plain object로 충분하다.
+    let messageContent: string | AnyContentBlockDto[];
+    if (attachments && attachments.length > 0) {
+      const blocks: AnyContentBlockDto[] = [];
+      if (content.trim()) {
+        blocks.push({ type: 'text', text: content.trim() } as TextBlockDto);
+      }
+      for (const att of attachments) {
+        blocks.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: att.mimeType,
+            data: att.base64,
+          } as ImageSourceDto,
+        } as ImageBlockDto);
+      }
+      messageContent = blocks;
+    } else {
+      messageContent = content.trim();
+    }
 
     // Create user message in JSONL structure
     const userMessage: LoadedMessageDto = {
       type: 'user',
       uuid: generateMessageId(),
       timestamp: new Date().toISOString(),
-      message: { role: 'user', content: content.trim() } as any,
+      message: { role: 'user', content: messageContent } as any,
       context,
     };
     appendMessage(userMessage);

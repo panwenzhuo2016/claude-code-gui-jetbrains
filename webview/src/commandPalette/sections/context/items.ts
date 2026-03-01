@@ -8,9 +8,7 @@ export const contextItems = [
     disabled: false,
     serviceAction: async (services) => {
       if (services.chatStream.isStreaming) services.chatStream.stop();
-      services.chatStream.clearMessages();
-      services.chatStream.resetStreamState();
-      services.chatStream.setInput('');
+      services.chatStream.resetForSessionSwitch();
       services.session.setCurrentSessionId(null);
       services.session.setSessionState('idle');
     },

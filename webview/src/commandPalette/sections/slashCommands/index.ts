@@ -4,3 +4,4 @@ export { InitCommand } from './InitCommand';
 export { ReviewCommand } from './ReviewCommand';
 export { HelpCommand } from './HelpCommand';
 export { CompactCommand } from './CompactCommand';
+export { CliPassthroughCommand } from './CliPassthroughCommand';

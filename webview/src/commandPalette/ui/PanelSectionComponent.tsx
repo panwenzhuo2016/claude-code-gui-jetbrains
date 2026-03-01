@@ -37,12 +37,14 @@ export const PanelSectionComponent: React.FC<{
 
       {/* Section Header */}
       <div
+        onClick={section.onHeaderClick}
         style={{
           padding: '8px 12px 4px',
           fontSize: 'var(--section-header-size, 11px)',
           color: 'var(--section-header-color, #6e7681)',
           fontWeight: 500,
           letterSpacing: '0.5px',
+          cursor: section.onHeaderClick ? 'pointer' : undefined,
         }}
       >
         {section.title}

@@ -40,6 +40,10 @@ interface ChatStreamContextType {
   // Thinking block global expand/collapse state
   isThinkingExpanded: boolean;
   toggleThinkingExpanded: () => void;
+
+  // Session lifecycle
+  systemInit: Record<string, unknown> | null;
+  resetForSessionSwitch: () => void;
 }
 
 const ChatStreamContext = createContext<ChatStreamContextType | undefined>(undefined);
@@ -85,10 +89,31 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
       console.error('[ChatStreamContext] Stream error:', error);
       session.setSessionState('error');
     },
-    onSystemMessage: (data: { sessionId: string; content: unknown }) => {
+    onSystemMessage: (data: Record<string, unknown>) => {
       console.log('[ChatStreamContext] System message:', data);
     },
   });
+
+  // 모든 세션별 상태를 한 번에 리셋하는 통합 함수
+  const resetForSessionSwitch = useCallback(() => {
+    chatStream.clearMessages();
+    chatStream.resetStreamState();
+    setInput('');
+    setIsThinkingExpanded(false);
+    tools.clearToolUses();
+    diffs.clearDiffs();
+  }, [chatStream.clearMessages, chatStream.resetStreamState, tools.clearToolUses, diffs.clearDiffs]);
+
+  // 세션 전환 자동 감지: currentSessionId 변경 시 모든 세션별 상태 리셋
+  const prevSessionIdRef = useRef<string | null>(session.currentSessionId);
+  useEffect(() => {
+    const prevId = prevSessionIdRef.current;
+    prevSessionIdRef.current = session.currentSessionId;
+    if (prevId !== null && prevId !== session.currentSessionId) {
+      console.log('[ChatStreamContext] Session switch detected:', prevId, '→', session.currentSessionId);
+      resetForSessionSwitch();
+    }
+  }, [session.currentSessionId, resetForSessionSwitch]);
 
   // ref로 안정화 (useEffect 의존성 churn 방지)
   const toolsRef = useRef(tools);
@@ -242,6 +267,10 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     // Thinking block global expand/collapse state
     isThinkingExpanded,
     toggleThinkingExpanded,
+
+    // Session lifecycle
+    systemInit: chatStream.systemInit,
+    resetForSessionSwitch,
   };
 
   return (

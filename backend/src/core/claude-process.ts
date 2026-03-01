@@ -254,11 +254,9 @@ function handleStreamEvent(
   switch (eventType) {
     case 'system':
       connections.broadcastToSession(targetSessionId, 'STREAM_EVENT', {
+        ...event,
         eventType: 'system',
-        subtype: event.subtype,
         sessionId: event.session_id,
-        cwd: event.cwd,
-        model: event.model,
       });
       break;
 

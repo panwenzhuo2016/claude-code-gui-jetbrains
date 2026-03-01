@@ -5,6 +5,5 @@ export class SlashCommandsSection extends SectionDef {
   readonly id = PanelSectionId.SlashCommands;
   readonly title = 'Slash Commands';
   readonly order = 3;
-  readonly scrollable = true;
-  readonly maxHeight = 200;
+  readonly scrollable = false;
 }

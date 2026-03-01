@@ -90,6 +90,18 @@ export function ChatInput() {
     };
   }, [textareaRef]);
 
+  // 세션 전환 시 ChatInput 로컬 상태 리셋
+  const prevChatInputSessionRef = useRef(currentSessionId);
+  useEffect(() => {
+    const prev = prevChatInputSessionRef.current;
+    prevChatInputSessionRef.current = currentSessionId;
+    if (prev !== null && prev !== currentSessionId) {
+      clearAttachments();
+      inputHistory.initHistory([]);
+      lastInitSessionRef.current = undefined;
+    }
+  }, [currentSessionId, clearAttachments, inputHistory]);
+
   // Populate input history from session messages on session change
   useEffect(() => {
     if (!currentSessionId || currentSessionId === lastInitSessionRef.current) return;

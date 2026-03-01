@@ -12,9 +12,7 @@ export class ClearCommand extends SlashCommand {
       chatStream.stop();
     }
 
-    chatStream.clearMessages();
-    chatStream.resetStreamState();
-    chatStream.setInput('');
+    chatStream.resetForSessionSwitch();
 
     session.setCurrentSessionId(null);
     session.setSessionState('idle');

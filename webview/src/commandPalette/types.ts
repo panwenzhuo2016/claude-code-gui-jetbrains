@@ -21,6 +21,7 @@ export interface CommandPaletteServices {
     continue: () => void;
     clearMessages: () => void;
     resetStreamState: () => void;
+    resetForSessionSwitch: () => void;
   };
   session: {
     currentSessionId: string | null;

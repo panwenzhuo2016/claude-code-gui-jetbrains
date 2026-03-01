@@ -20,7 +20,7 @@ export interface UseChatStreamOptions {
   /** 에러 발생 시 콜백 */
   onError?: (error: Error) => void;
   /** 시스템 메시지 수신 시 콜백 */
-  onSystemMessage?: (data: { sessionId: string; content: unknown }) => void;
+  onSystemMessage?: (data: Record<string, unknown>) => void;
 }
 
 export interface UseChatStreamReturn {
@@ -47,6 +47,7 @@ export interface UseChatStreamReturn {
   continue: () => void;
   /** 스트림 관련 모든 내부 상태를 초기화 (clear conversation 등에서 사용) */
   resetStreamState: () => void;
+  systemInit: Record<string, unknown> | null;
 }
 
 /**
@@ -93,6 +94,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   const [isStopped, setIsStopped] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [systemInit, setSystemInit] = useState<Record<string, unknown> | null>(null);
 
   // RAF 스로틀링 관련 refs
   const pendingTextRef = useRef<string>('');
@@ -420,6 +422,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   // Reset all stream-related internal state (for clear conversation)
   const resetStreamState = useCallback(() => {
     setIsStopped(false);
+    setSystemInit(null);
     setIsStreaming(false);
     setStreamingMessageId(null);
     streamingMessageIdRef.current = null;
@@ -454,11 +457,11 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
       // 시스템 메시지 판별
       if (payload?.eventType === 'system') {
-        onSystemMessageRef.current?.({
-          sessionId: payload.sessionId as string,
-          content: payload.content,
-        });
-        return; // delta 처리 스킵
+        if (payload.subtype === 'init') {
+          setSystemInit(payload as Record<string, unknown>);
+        }
+        onSystemMessageRef.current?.(payload as Record<string, unknown>);
+        return;
       }
 
       const event = payload?.event as string | undefined;
@@ -746,5 +749,6 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     stop,
     continue: continueGeneration,
     resetStreamState,
+    systemInit,
   };
 }

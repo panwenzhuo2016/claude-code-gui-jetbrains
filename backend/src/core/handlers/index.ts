@@ -23,6 +23,7 @@ import { openSettingsHandler } from './openSettings';
 import { getVersionHandler } from './getVersion';
 import { getAccountHandler } from './getAccount';
 import { reclaimSessionHandler } from './reclaimSession';
+import { getSlashCommandsHandler } from './getSlashCommands';
 
 export async function handleMessage(
   connectionId: string,
@@ -98,6 +99,9 @@ export async function handleMessage(
       break;
     case 'RECLAIM_SESSION':
       await reclaimSessionHandler(connectionId, message, connections, bridge);
+      break;
+    case 'GET_SLASH_COMMANDS':
+      await getSlashCommandsHandler(connectionId, message, connections, bridge);
       break;
     default:
       console.error('[node-backend]', `Unknown message type: ${message.type}`);

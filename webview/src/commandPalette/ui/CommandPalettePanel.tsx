@@ -57,7 +57,7 @@ export const CommandPalettePanel: React.FC<CommandPalettePanelProps> = ({
         left: '0',
         marginBottom: '12px',
         width: 'calc(100%)',
-        maxHeight: '400px',
+        maxHeight: '320px',
         backgroundColor: 'var(--panel-bg, #252526)',
         borderRadius: 'var(--panel-radius, 6px)',
         boxShadow: 'var(--panel-shadow, 0 4px 12px rgba(0,0,0,0.3))',

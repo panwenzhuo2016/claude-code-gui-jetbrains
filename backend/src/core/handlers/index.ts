@@ -22,6 +22,7 @@ import { newSessionHandler } from './newSession';
 import { openSettingsHandler } from './openSettings';
 import { getVersionHandler } from './getVersion';
 import { getAccountHandler } from './getAccount';
+import { reclaimSessionHandler } from './reclaimSession';
 
 export async function handleMessage(
   connectionId: string,
@@ -94,6 +95,9 @@ export async function handleMessage(
       break;
     case 'GET_ACCOUNT':
       await getAccountHandler(connectionId, message, connections, bridge);
+      break;
+    case 'RECLAIM_SESSION':
+      await reclaimSessionHandler(connectionId, message, connections, bridge);
       break;
     default:
       console.error('[node-backend]', `Unknown message type: ${message.type}`);

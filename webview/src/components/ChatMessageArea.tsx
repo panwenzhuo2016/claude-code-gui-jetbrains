@@ -7,6 +7,7 @@ import { transformContentBlocks } from '../mappers/contentBlockTransformer';
 import type { SubAgentMessage } from '../dto/message/ContentBlockDto';
 import { useSessionContext } from '../contexts/SessionContext';
 import { useChatStreamContext } from '../contexts/ChatStreamContext';
+import { StreamErrorBanner } from './StreamErrorBanner';
 
 /**
  * Convert progress entries into SubAgentMessage array.
@@ -33,7 +34,7 @@ function buildSubAgentMessages(progressEntries: LoadedMessageDto[]): SubAgentMes
 
 export function ChatMessageArea() {
   const { workingDirectory, setWorkingDirectory } = useSessionContext();
-  const { messages, retry: onRetry, error } = useChatStreamContext();
+  const { messages, retry: onRetry } = useChatStreamContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -160,11 +161,7 @@ export function ChatMessageArea() {
           <MessageBubble message={message} onRetry={onRetry} />
         </div>
       ))}
-      {error && (
-        <div className="mx-4 my-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-          {error.message}
-        </div>
-      )}
+      <StreamErrorBanner />
       <div ref={messagesEndRef} />
     </div>
   );

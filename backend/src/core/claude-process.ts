@@ -12,6 +12,19 @@ const INPUT_MODE_TO_CLI_FLAG: Record<string, string> = {
 // result 이벤트 수신 여부 추적 (비정상 종료 시 에러 전파 판단용)
 const sessionsWithResult = new Set<string>();
 
+// 한 번이라도 spawn된 세션 추적 (재시작 시 --resume 사용 판단용)
+// --session-id: 새 세션 전용 (JSONL 이미 존재하면 "already in use" 에러)
+// --resume: 기존 세션 이어받기 (JSONL이 있어야 동작)
+const spawnedSessions = new Set<string>();
+
+/**
+ * 외부에서 세션을 spawned로 마킹 (다음 spawn 시 --resume 사용).
+ * reclaimSession 등에서 사용.
+ */
+export function markSessionAsSpawned(sessionId: string): void {
+  spawnedSessions.add(sessionId);
+}
+
 /**
  * 세션에 대한 claude -p 프로세스가 없으면 새로 spawn한다.
  * 이미 살아있는 프로세스가 있으면 아무 것도 하지 않는다.
@@ -32,9 +45,12 @@ export async function ensureClaudeProcess(
     return;
   }
 
+  const useResume = spawnedSessions.has(targetSessionId);
+  const sessionFlag = useResume ? '--resume' : '--session-id';
+
   console.error('[node-backend]', `Starting Claude CLI process (-p interactive)...`);
   console.error('[node-backend]', `Working directory: ${workingDir}`);
-  console.error('[node-backend]', `Session: ${targetSessionId}`);
+  console.error('[node-backend]', `Session: ${targetSessionId} (${sessionFlag})`);
 
   const args: string[] = [
     '-p',
@@ -44,7 +60,7 @@ export async function ensureClaudeProcess(
     'stream-json',
     '--verbose',
     '--include-partial-messages',
-    '--session-id',
+    sessionFlag,
     targetSessionId,
   ];
 
@@ -92,6 +108,9 @@ export async function ensureClaudeProcess(
       reject(err);
     });
   });
+
+  // 성공적으로 spawn됨 → 다음 재시작 시 --resume 사용
+  spawnedSessions.add(targetSessionId);
 
   // SessionRecord에 프로세스 저장
   connections.setProcess(targetSessionId, proc);
@@ -142,6 +161,12 @@ export async function ensureClaudeProcess(
         console.error('[node-backend]', `Remaining buffer (non-JSON): ${remainingBuffer}`);
       }
       connections.setBuffer(targetSessionId, '');
+    }
+
+    // "already in use" 에러 감지 → spawnedSessions에 추가 (다음 시도에서 --resume 사용)
+    // 이 경우는 백엔드 콜드스타트 시 기존 세션에 접근할 때 발생
+    if (code !== 0 && stderrBuffer.includes('already in use')) {
+      spawnedSessions.add(targetSessionId);
     }
 
     // 비정상 종료 + result 미수신 → 에러 전파

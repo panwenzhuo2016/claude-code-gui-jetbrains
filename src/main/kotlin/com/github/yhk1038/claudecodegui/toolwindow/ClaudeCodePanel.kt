@@ -211,12 +211,16 @@ class ClaudeCodePanel(
      * Called once the backend has printed its PORT.
      */
     private fun loadWebView(port: Int) {
+        System.err.println("[ClaudeCodePanel] loadWebView called for project: ${project.name}")
+        System.err.println("[ClaudeCodePanel] project.basePath: ${project.basePath}")
+
         val workingDirParam = project.basePath?.let {
             "?workingDir=${java.net.URLEncoder.encode(it, "UTF-8")}"
         } ?: ""
 
         val envParam = if (workingDirParam.isNotEmpty()) "&env=jcef" else "?env=jcef"
         val url = "http://localhost:$port$workingDirParam$envParam"
+        System.err.println("[ClaudeCodePanel] Loading URL: $url")
         logger.info("Loading WebView from Node.js backend: $url")
 
         javax.swing.SwingUtilities.invokeLater {

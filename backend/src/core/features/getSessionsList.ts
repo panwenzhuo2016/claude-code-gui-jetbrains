@@ -11,6 +11,7 @@ export async function getSessionsList(workingDir: string): Promise<SessionListEn
 
   try {
     const sessionsPath = await getProjectSessionsPath(workingDir);
+    console.error('[getSessionsList]', 'looking in:', sessionsPath);
 
     if (!existsSync(sessionsPath)) {
       console.error('[node-backend]', 'Sessions dir not found:', sessionsPath);

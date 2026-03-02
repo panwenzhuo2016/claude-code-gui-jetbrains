@@ -211,6 +211,7 @@ class NodeProcessManager(
         while (true) {
             val line = reader.readLine() ?: break
             if (line.isNotBlank()) {
+                System.err.println("[Node.js] $line")
                 logger.info("[Node.js] $line")
             }
         }

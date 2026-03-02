@@ -1,7 +1,6 @@
 import { GroupedSessions } from './utils';
 import { SearchInput } from './SearchInput';
 import { SessionList } from './SessionList';
-import { useSessionContext } from '../../../contexts/SessionContext';
 
 interface DropdownMenuProps {
   searchQuery: string;
@@ -20,24 +19,20 @@ export function DropdownMenu({
   currentSessionId,
   onSelectSession,
 }: DropdownMenuProps) {
-  const { isLoading } = useSessionContext();
-
   return (
     <div className="absolute left-0 top-full mt-1 w-[23rem] bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-hidden z-50">
-      <SearchInput value={searchQuery} onChange={onSearchChange} isLoading={isLoading} />
+      <SearchInput value={searchQuery} onChange={onSearchChange} />
 
-      {filteredSessionsCount > 0 && (
+      {filteredSessionsCount > 0 ? (
         <SessionList
           groupedSessions={groupedSessions}
           currentSessionId={currentSessionId}
           onSelectSession={onSelectSession}
         />
-      )}
-
-      {!isLoading && filteredSessionsCount === 0 && (
-        <div className="px-2.5 py-3 text-xs text-zinc-500 text-center">
-          {searchQuery.trim() ? 'No matching sessions' : 'No sessions yet'}
-        </div>
+      ) : (
+          <div className="px-2.5 py-3 text-xs text-zinc-500 text-center">
+            {searchQuery.trim() ? 'No matching sessions' : 'No sessions yet'}
+          </div>
       )}
     </div>
   );

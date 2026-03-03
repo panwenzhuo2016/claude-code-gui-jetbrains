@@ -604,11 +604,38 @@ class NodeProcessManager(
      * This is a best-effort approach for IDE development runtime.
      */
     private fun extractAssetsFromClasspath(targetDir: File) {
-        // Known asset patterns that might exist
+        // Try dynamic directory scanning first (works in IDE runtime where resources are on filesystem)
+        val assetsUrl = javaClass.getResource("/webview/assets/")
+        if (assetsUrl != null && assetsUrl.protocol == "file") {
+            try {
+                val assetsDir = File(assetsUrl.toURI())
+                if (assetsDir.isDirectory) {
+                    assetsDir.listFiles()?.forEach { file ->
+                        if (file.isFile) {
+                            val relativePath = "assets/${file.name}"
+                            val targetFile = File(targetDir, relativePath)
+                            targetFile.parentFile?.mkdirs()
+                            file.inputStream().use { input ->
+                                targetFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            logger.debug("Extracted asset (scanned): $relativePath")
+                        }
+                    }
+                    return
+                }
+            } catch (e: Exception) {
+                logger.debug("Directory scanning failed, falling back to known assets: ${e.message}")
+            }
+        }
+
+        // Fallback: extract known assets individually from classpath
         val knownAssets = listOf(
             "assets/index.js",
             "assets/index.css",
-            "assets/codicon.ttf"
+            "assets/codicon.ttf",
+            "assets/code-block-37QAKDTI.js"
         )
 
         for (asset in knownAssets) {

@@ -44,6 +44,15 @@ intellijPlatform {
             untilBuild = "253.*"
         }
         changeNotes = """
+            <h3>0.6.6 - Process Lifecycle &amp; Error Resilience</h3>
+            <ul>
+                <li>Prevent duplicate Node.js backend processes with project-level singleton service</li>
+                <li>Clean up session processes and WebSocket connections on backend shutdown</li>
+                <li>Fix static asset MIME type errors caused by SPA fallback routing</li>
+                <li>Fix asset extraction to prefer dynamic directory scanning</li>
+                <li>Add global ErrorBoundary with StreamErrorBanner component separation</li>
+                <li>Migrate string literal union types to enums for better type safety</li>
+            </ul>
             <h3>0.6.5 - Session Refresh &amp; Tab Routing Fix</h3>
             <ul>
                 <li>Add manual refresh button to session dropdown for on-demand session list reload</li>

@@ -227,6 +227,7 @@ describe('useChatStream', () => {
       });
 
       expect(onSystemMessage).toHaveBeenCalledWith({
+        eventType: 'system',
         sessionId: 'session-123',
         content: { type: 'status', message: 'Processing' },
       });
@@ -529,11 +530,13 @@ describe('useChatStream', () => {
 
       const loadedMessages: LoadedMessage[] = [
         {
+          uuid: 'loaded-msg-1',
           type: LoadedMessageType.User,
           timestamp: '2024-01-01T00:00:00Z',
           message: { role: MessageRole.User, content: 'Hello' },
         },
         {
+          uuid: 'loaded-msg-2',
           type: LoadedMessageType.Assistant,
           timestamp: '2024-01-01T00:00:01Z',
           message: { role: MessageRole.Assistant, content: 'Hi there' },
@@ -560,6 +563,7 @@ describe('useChatStream', () => {
 
       const loadedMessages: LoadedMessage[] = [
         {
+          uuid: 'new-msg-1',
           type: LoadedMessageType.User,
           timestamp: '2024-01-01T00:00:00Z',
           message: { role: MessageRole.User, content: 'New message' },

@@ -434,6 +434,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
   // Stop
   const stop = useCallback(() => {
+    setIsStopped(true);
     endStreaming();
   }, [endStreaming]);
 

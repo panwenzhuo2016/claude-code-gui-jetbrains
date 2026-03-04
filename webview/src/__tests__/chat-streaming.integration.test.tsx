@@ -44,6 +44,8 @@ const mockSession = {
   renameSession: vi.fn(),
   setSessionState: vi.fn(),
   setWorkingDirectory: vi.fn(),
+  setCurrentSessionId: vi.fn(),
+  addNewSession: vi.fn(),
 };
 
 vi.mock('../contexts/SessionContext', () => ({
@@ -171,10 +173,14 @@ describe('채팅 스트리밍 통합 테스트', () => {
     });
 
     expect(screen.getByTestId('msg-user')).toHaveTextContent('Hello');
-    expect(mockBridge.send).toHaveBeenCalledWith('SEND_MESSAGE', {
+    expect(mockBridge.send).toHaveBeenCalledWith('SEND_MESSAGE', expect.objectContaining({
       content: 'Hello',
       context: [],
-    });
+      inputMode: 'ask_before_edit',
+      isNewSession: false,
+      sessionId: 'existing-session',
+      workingDir: '/test',
+    }));
     expect(screen.getByTestId('input')).toHaveValue('');
   });
 

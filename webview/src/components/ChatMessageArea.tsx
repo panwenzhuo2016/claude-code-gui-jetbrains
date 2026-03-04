@@ -11,6 +11,7 @@ import { StreamErrorBanner } from './StreamErrorBanner';
 import { LoadedMessageType, MessageRole } from '../dto/common';
 import './streaming.css';
 import {StreamingIndicator} from "./StreamingIndicator/index.tsx";
+import { EmptyState } from './EmptyState';
 
 /**
  * Convert progress entries into SubAgentMessage array.
@@ -154,11 +155,7 @@ export function ChatMessageArea(props: Props) {
 
   // Empty state: no messages yet
   if (isEmpty) {
-    return (
-      <div className="h-full flex items-center justify-center" onClick={log}>
-        <p className="text-zinc-500 text-sm">Type a message</p>
-      </div>
-    );
+    return <EmptyState />;
   }
 
   // Render messages with widgets

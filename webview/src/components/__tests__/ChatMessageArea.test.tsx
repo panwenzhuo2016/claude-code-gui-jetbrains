@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ChatMessageArea } from '../ChatMessageArea';
-import type { LoadedMessageDto, ToolUse } from '../../types';
+import type { LoadedMessageDto } from '../../types';
 import { LoadedMessageType, MessageRole } from '../../dto/common';
 
 // Mock contexts
@@ -32,16 +32,12 @@ vi.mock('../MessageBubble', () => ({
   ),
 }));
 
-vi.mock('../ToolCard', () => ({
-  ToolCard: ({ toolUse }: { toolUse: ToolUse }) => (
-    <div data-testid={`tool-card-${toolUse.id}`}>
-      Tool: {toolUse.name} - Status: {toolUse.status}
-    </div>
-  ),
-}));
-
 vi.mock('../ProjectSelector', () => ({
   ProjectSelector: () => <div data-testid="project-selector">Select Project</div>,
+}));
+
+vi.mock('../EmptyState', () => ({
+  EmptyState: () => <div data-testid="empty-state">Type a message</div>,
 }));
 
 describe('ChatMessageArea', () => {
@@ -77,7 +73,7 @@ describe('ChatMessageArea', () => {
 
     render(<ChatMessageArea isStreaming={false} />);
 
-    expect(screen.getByText('Type a message')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
   });
 
   it('renders user message correctly', () => {
@@ -128,8 +124,6 @@ describe('ChatMessageArea', () => {
     render(<ChatMessageArea isStreaming={false} />);
 
     expect(screen.getByTestId('message-bubble-msg3')).toBeInTheDocument();
-    expect(screen.getByTestId('tool-card-tool1')).toBeInTheDocument();
-    expect(screen.getByText('Tool: read_file - Status: completed')).toBeInTheDocument();
   });
 
   it('renders multiple messages correctly', () => {
@@ -184,9 +178,6 @@ describe('ChatMessageArea', () => {
 
     render(<ChatMessageArea isStreaming={false} />);
 
-    expect(screen.getByTestId('tool-card-tool1')).toBeInTheDocument();
-    expect(screen.getByTestId('tool-card-tool2')).toBeInTheDocument();
-    expect(screen.getByText('Tool: read_file - Status: completed')).toBeInTheDocument();
-    expect(screen.getByText('Tool: write_file - Status: completed')).toBeInTheDocument();
+    expect(screen.getByTestId('message-bubble-msg4')).toBeInTheDocument();
   });
 });

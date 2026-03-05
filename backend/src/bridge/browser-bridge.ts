@@ -10,9 +10,14 @@ import { readSettingsFile } from '../core/features/settings';
 export class BrowserBridge implements Bridge {
   async openFile(path: string): Promise<void> {
     return new Promise<void>((resolve) => {
-      const command = process.platform === 'darwin'
-        ? `open "${path}"`
-        : `xdg-open "${path}"`;
+      let command: string;
+      if (process.platform === 'darwin') {
+        command = `open "${path}"`;
+      } else if (process.platform === 'win32') {
+        command = `start "" "${path}"`;
+      } else {
+        command = `xdg-open "${path}"`;
+      }
 
       exec(command, (err) => {
         if (err) {
@@ -45,9 +50,14 @@ export class BrowserBridge implements Bridge {
 
   async openUrl(url: string): Promise<void> {
     return new Promise<void>((resolve) => {
-      const command = process.platform === 'darwin'
-        ? `open "${url}"`
-        : `xdg-open "${url}"`;
+      let command: string;
+      if (process.platform === 'darwin') {
+        command = `open "${url}"`;
+      } else if (process.platform === 'win32') {
+        command = `start "" "${url}"`;
+      } else {
+        command = `xdg-open "${url}"`;
+      }
 
       exec(command, (err) => {
         if (err) {
@@ -63,8 +73,9 @@ export class BrowserBridge implements Bridge {
     const terminalApp = settings['terminalApp'] as string | null;
 
     const claudePath = await new Promise<string>((resolve) => {
-      exec('which claude', (err, stdout) => {
-        resolve(err ? 'claude' : stdout.trim());
+      const cmd = process.platform === 'win32' ? 'where claude' : 'which claude';
+      exec(cmd, (err, stdout) => {
+        resolve(err ? 'claude' : stdout.trim().split('\n')[0]);
       });
     });
 
@@ -86,6 +97,28 @@ export class BrowserBridge implements Bridge {
            end tell`;
 
       exec(`osascript -e '${script.replace(/'/g, "'\\''")}'`, (err) => {
+        if (err) {
+          console.error('[node-backend]', 'Failed to open terminal:', err.message);
+        }
+      });
+    } else if (process.platform === 'win32') {
+      let command: string;
+      const app = terminalApp ?? '';
+
+      if (!app) {
+        command = `start cmd /k "cd /d \\"${workingDir}\\" && claude"`;
+      } else if (app === 'Windows Terminal' || app === 'wt') {
+        command = `wt -d "${workingDir}" cmd /k claude`;
+      } else if (app === 'PowerShell' || app === 'powershell') {
+        command = `start powershell -NoExit -Command "cd '${workingDir}'; claude"`;
+      } else if (app === 'Git Bash' || app === 'bash') {
+        const gitBashPath = `${process.env['PROGRAMFILES'] ?? 'C:\\Program Files'}\\Git\\bin\\bash.exe`;
+        command = `start "" "${gitBashPath}" --cd="${workingDir}" -c "claude; exec bash"`;
+      } else {
+        command = `start "" "${app}" "${workingDir}"`;
+      }
+
+      exec(command, (err) => {
         if (err) {
           console.error('[node-backend]', 'Failed to open terminal:', err.message);
         }

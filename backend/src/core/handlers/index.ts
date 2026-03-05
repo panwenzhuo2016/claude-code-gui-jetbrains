@@ -27,6 +27,8 @@ import { reclaimSessionHandler } from './reclaimSession';
 import { getSlashCommandsHandler } from './getSlashCommands';
 import { loginHandler } from './login';
 import { openUrlHandler } from './openUrl';
+import { getAvailableTerminalsHandler } from './getAvailableTerminals';
+import { getDetectedCliPathHandler } from './getDetectedCliPath';
 
 export async function handleMessage(
   connectionId: string,
@@ -114,6 +116,12 @@ export async function handleMessage(
       break;
     case 'OPEN_URL':
       await openUrlHandler(connectionId, message, connections, bridge);
+      break;
+    case 'GET_AVAILABLE_TERMINALS':
+      await getAvailableTerminalsHandler(connectionId, message, connections, bridge);
+      break;
+    case 'GET_DETECTED_CLI_PATH':
+      await getDetectedCliPathHandler(connectionId, message, connections, bridge);
       break;
     default:
       console.error('[node-backend]', `Unknown message type: ${message.type}`);

@@ -45,6 +45,10 @@ intellijPlatform {
             untilBuild = "253.*"
         }
         changeNotes = """
+            <h3>0.7.2 - Compatibility Fix</h3>
+            <ul>
+                <li>Replace deprecated terminal API to fix compatibility warnings across all IDE versions</li>
+            </ul>
             <h3>0.7.1 - Usage API Reliability Improvements</h3>
             <ul>
                 <li>Improve Usage API rate limit handling with Retry-After header support</li>

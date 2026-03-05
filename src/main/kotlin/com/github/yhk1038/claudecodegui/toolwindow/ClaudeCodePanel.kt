@@ -359,7 +359,8 @@ class ClaudeCodePanel(
                 ApplicationManager.getApplication().invokeLater {
                     try {
                         val terminalManager = org.jetbrains.plugins.terminal.TerminalToolWindowManager.getInstance(project)
-                        val shellWidget = terminalManager.createLocalShellWidget(workingDir, "Claude Code")
+                        val widget = terminalManager.createShellWidget(workingDir, "Claude Code", true, false)
+                        val shellWidget = org.jetbrains.plugins.terminal.ShellTerminalWidget.toShellJediTermWidgetOrThrow(widget)
                         shellWidget.executeCommand("claude")
                         logger.info("Opened terminal with claude in: $workingDir")
                     } catch (e: Exception) {

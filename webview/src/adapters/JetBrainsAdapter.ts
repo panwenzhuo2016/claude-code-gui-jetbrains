@@ -28,4 +28,14 @@ export class JetBrainsAdapter implements IdeAdapter {
     await getBridge().request('OPEN_FILE', { filePath });
     console.log('[JetBrainsAdapter] Sent OPEN_FILE via WebSocket bridge:', filePath);
   }
+
+  async openTerminal(workingDir: string): Promise<void> {
+    await getBridge().request('OPEN_TERMINAL', { workingDir });
+    console.log('[JetBrainsAdapter] Sent OPEN_TERMINAL via WebSocket bridge:', workingDir);
+  }
+
+  async openUrl(url: string): Promise<void> {
+    await getBridge().request('OPEN_URL', { url });
+    console.log('[JetBrainsAdapter] Sent OPEN_URL via WebSocket bridge:', url);
+  }
 }

@@ -20,10 +20,13 @@ import { applyDiffHandler } from './applyDiff';
 import { rejectDiffHandler } from './rejectDiff';
 import { newSessionHandler } from './newSession';
 import { openSettingsHandler } from './openSettings';
+import { openTerminalHandler } from './openTerminal';
 import { getVersionHandler } from './getVersion';
 import { getAccountHandler } from './getAccount';
 import { reclaimSessionHandler } from './reclaimSession';
 import { getSlashCommandsHandler } from './getSlashCommands';
+import { loginHandler } from './login';
+import { openUrlHandler } from './openUrl';
 
 export async function handleMessage(
   connectionId: string,
@@ -91,6 +94,9 @@ export async function handleMessage(
     case 'OPEN_SETTINGS':
       await openSettingsHandler(connectionId, message, connections, bridge);
       break;
+    case 'OPEN_TERMINAL':
+      await openTerminalHandler(connectionId, message, connections, bridge);
+      break;
     case 'GET_VERSION':
       await getVersionHandler(connectionId, message, connections, bridge);
       break;
@@ -102,6 +108,12 @@ export async function handleMessage(
       break;
     case 'GET_SLASH_COMMANDS':
       await getSlashCommandsHandler(connectionId, message, connections, bridge);
+      break;
+    case 'LOGIN':
+      await loginHandler(connectionId, message, connections, bridge);
+      break;
+    case 'OPEN_URL':
+      await openUrlHandler(connectionId, message, connections, bridge);
       break;
     default:
       console.error('[node-backend]', `Unknown message type: ${message.type}`);

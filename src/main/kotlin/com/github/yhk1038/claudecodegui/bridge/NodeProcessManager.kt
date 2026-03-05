@@ -56,6 +56,8 @@ class NodeProcessManager(
         suspend fun rejectDiff(toolUseId: String?)
         suspend fun newSession()
         suspend fun openSettings()
+        suspend fun openTerminal(workingDir: String)
+        suspend fun openUrl(url: String)
     }
 
     /**
@@ -288,6 +290,20 @@ class NodeProcessManager(
 
                 "OPEN_SETTINGS" -> {
                     rpcHandler.openSettings()
+                    buildJsonObject {}
+                }
+
+                "OPEN_TERMINAL" -> {
+                    val workingDir = params["workingDir"]?.jsonPrimitive?.content
+                        ?: throw IllegalArgumentException("Missing 'workingDir' param")
+                    rpcHandler.openTerminal(workingDir)
+                    buildJsonObject {}
+                }
+
+                "OPEN_URL" -> {
+                    val url = params["url"]?.jsonPrimitive?.content
+                        ?: throw IllegalArgumentException("Missing 'url' param")
+                    rpcHandler.openUrl(url)
                     buildJsonObject {}
                 }
 

@@ -19,6 +19,7 @@ dependencies {
         val platformVersion = providers.gradleProperty("platformVersion").getOrElse("2025.3.2")
 
         intellijIdea(platformVersion)
+        bundledPlugin("org.jetbrains.plugins.terminal")
     }
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")

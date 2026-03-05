@@ -71,12 +71,14 @@ export function CommandPaletteProvider({ children }: CommandPaletteProviderProps
     session: {
       currentSessionId: session.currentSessionId,
       sessionState: session.sessionState,
+      workingDirectory: session.workingDirectory,
       setCurrentSessionId: session.setCurrentSessionId,
       setSessionState: session.setSessionState,
     },
     adapter: {
       openNewTab: () => getAdapter().openNewTab(),
       openSettings: () => getAdapter().openSettings(),
+      openTerminal: (workingDir) => getAdapter().openTerminal(workingDir),
     },
   });
 
@@ -98,12 +100,14 @@ export function CommandPaletteProvider({ children }: CommandPaletteProviderProps
     session: {
       currentSessionId: session.currentSessionId,
       sessionState: session.sessionState,
+      workingDirectory: session.workingDirectory,
       setCurrentSessionId: session.setCurrentSessionId,
       setSessionState: session.setSessionState,
     },
     adapter: {
       openNewTab: () => getAdapter().openNewTab(),
       openSettings: () => getAdapter().openSettings(),
+      openTerminal: (workingDir) => getAdapter().openTerminal(workingDir),
     },
   };
 

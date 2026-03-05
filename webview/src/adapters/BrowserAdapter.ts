@@ -45,4 +45,18 @@ export class BrowserAdapter implements IdeAdapter {
       console.error('[BrowserAdapter] Failed to open file:', filePath, error);
     }
   }
+
+  async openTerminal(workingDir: string): Promise<void> {
+    try {
+      await getBridge().request('OPEN_TERMINAL', { workingDir });
+      console.log('[BrowserAdapter] Sent OPEN_TERMINAL request:', workingDir);
+    } catch (error) {
+      console.error('[BrowserAdapter] Failed to open terminal:', error);
+    }
+  }
+
+  async openUrl(url: string): Promise<void> {
+    window.open(url, '_blank');
+    console.log('[BrowserAdapter] Opened URL in new tab:', url);
+  }
 }

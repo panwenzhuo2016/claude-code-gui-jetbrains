@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
   debugMode: false,
   logLevel: 'info',
   initialInputMode: 'ask_before_edit',
+  terminalApp: null,
 };
 
 const COMMENT_MAP: Record<string, string> = {
@@ -23,6 +24,7 @@ const COMMENT_MAP: Record<string, string> = {
   debugMode: '디버그 모드 활성화',
   logLevel: '로그 레벨: "debug" | "info" | "warn" | "error"',
   initialInputMode: '기본 입력 모드: "plan" | "bypass" | "ask_before_edit" | "auto_edit"',
+  terminalApp: '터미널 프로그램 (null이면 OS 기본 터미널)',
 };
 
 function generateSettingsContent(settings: Record<string, unknown>): string {
@@ -117,6 +119,11 @@ function validateSetting(key: string, value: unknown): string | null {
     case 'cliPath':
       if (value !== null && typeof value !== 'string') {
         return 'cliPath must be a string or null';
+      }
+      break;
+    case 'terminalApp':
+      if (value !== null && typeof value !== 'string') {
+        return 'terminalApp must be a string or null';
       }
       break;
   }

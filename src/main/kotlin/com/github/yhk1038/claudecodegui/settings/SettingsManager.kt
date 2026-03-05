@@ -38,7 +38,8 @@ class SettingsManager {
         "fontSize" to "글꼴 크기 (8~32)",
         "debugMode" to "디버그 모드 활성화",
         "logLevel" to """로그 레벨: "debug" | "info" | "warn" | "error"""",
-        "initialInputMode" to """기본 입력 모드: "plan" | "bypass" | "ask_before_edit" | "auto_edit""""
+        "initialInputMode" to """기본 입력 모드: "plan" | "bypass" | "ask_before_edit" | "auto_edit"""",
+        "terminalApp" to """터미널 프로그램 (null이면 OS 기본 터미널)"""
     )
 
     /** 기본값 맵 (순서 보존) */
@@ -48,7 +49,8 @@ class SettingsManager {
         "fontSize" to JsonPrimitive(13),
         "debugMode" to JsonPrimitive(false),
         "logLevel" to JsonPrimitive("info"),
-        "initialInputMode" to JsonPrimitive("ask_before_edit")
+        "initialInputMode" to JsonPrimitive("ask_before_edit"),
+        "terminalApp" to JsonNull
     )
 
     /**

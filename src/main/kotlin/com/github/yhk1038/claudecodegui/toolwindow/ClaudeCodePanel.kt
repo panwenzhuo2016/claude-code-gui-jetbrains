@@ -4,6 +4,7 @@ import com.github.yhk1038.claudecodegui.actions.OpenClaudeCodeAction
 import com.github.yhk1038.claudecodegui.bridge.NodeProcessManager
 import com.github.yhk1038.claudecodegui.services.DiffService
 import com.github.yhk1038.claudecodegui.services.NodeBackendService
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
@@ -352,6 +353,24 @@ class ClaudeCodePanel(
                     OpenClaudeCodeAction.openSession(project, UUID.randomUUID().toString(), "#/settings/general")
                     logger.info("Opened Claude Code settings in editor tab")
                 }
+            }
+
+            override suspend fun openTerminal(workingDir: String) {
+                ApplicationManager.getApplication().invokeLater {
+                    try {
+                        val terminalManager = org.jetbrains.plugins.terminal.TerminalToolWindowManager.getInstance(project)
+                        val shellWidget = terminalManager.createLocalShellWidget(workingDir, "Claude Code")
+                        shellWidget.executeCommand("claude")
+                        logger.info("Opened terminal with claude in: $workingDir")
+                    } catch (e: Exception) {
+                        logger.error("Failed to open terminal: $workingDir", e)
+                    }
+                }
+            }
+
+            override suspend fun openUrl(url: String) {
+                BrowserUtil.browse(url)
+                logger.info("Opened URL in browser: $url")
             }
         }
     }

@@ -127,4 +127,12 @@ export class JetBrainsBridge implements Bridge {
   async openSettings(): Promise<void> {
     await this.request('OPEN_SETTINGS');
   }
+
+  async openTerminal(workingDir: string): Promise<void> {
+    await this.request('OPEN_TERMINAL', { workingDir });
+  }
+
+  async openUrl(url: string): Promise<void> {
+    await this.request('OPEN_URL', { url });
+  }
 }

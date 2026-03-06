@@ -1,7 +1,7 @@
 {
   "name": "claude-code-webview",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.8.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,13 +13,16 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@tippyjs/react": "^4.2.6",
     "@vscode/codicons": "^0.0.44",
     "class-transformer": "^0.5.1",
     "react": "^18.3.1",
     "react-diff-view": "^3.2.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.71.2",
     "reflect-metadata": "^0.2.2",
     "streamdown": "^2.1.0",
+    "tippy.js": "^6.3.7",
     "unidiff": "^1.0.4"
   },
   "devDependencies": {

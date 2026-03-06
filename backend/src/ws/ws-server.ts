@@ -38,8 +38,9 @@ async function serveStaticFile(
   urlPath: string,
   res: ServerResponse,
 ): Promise<void> {
-  // Default to index.html for root and unknown paths (SPA)
-  const normalized = urlPath === '/' || !urlPath ? 'index.html' : urlPath.replace(/^\//, '');
+  // Strip querystring and hash before resolving the file path
+  const cleanUrl = (urlPath ?? '/').split('?')[0].split('#')[0];
+  const normalized = cleanUrl === '/' || !cleanUrl ? 'index.html' : cleanUrl.replace(/^\//, '');
   const filePath = join(webviewDir, normalized);
 
   try {
@@ -49,7 +50,15 @@ async function serveStaticFile(
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(data);
   } catch {
-    // Fall back to index.html for SPA routing
+    // Only fall back to index.html for SPA navigation routes (no file extension)
+    const ext = extname(normalized).toLowerCase();
+    if (ext && ext !== '.html') {
+      // Static asset not found → 404 (never serve index.html as JS/CSS)
+      res.writeHead(404);
+      res.end('Not found');
+      return;
+    }
+    // SPA route fallback
     try {
       const indexData = await readFile(join(webviewDir, 'index.html'));
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -70,36 +79,15 @@ export function startWebSocketServer(
   return new Promise<WebSocketServerHandle>((resolve, reject) => {
     const connections = new ConnectionManager();
 
-    const httpServer: Server = createServer(
-      async (req: IncomingMessage, res: ServerResponse) => {
-        if (webviewDir) {
-          await serveStaticFile(webviewDir, req.url ?? '/', res);
-        } else {
-          res.writeHead(404);
-          res.end('Not found');
-        }
-      },
-    );
-
+    // wss와 connections는 한 번만 생성 — httpServer만 retry마다 재생성
     const wss = new WebSocketServer({ noServer: true });
 
-    // Upgrade only /ws path to WebSocket
-    httpServer.on('upgrade', (request, socket, head) => {
-      if (request.url === '/ws') {
-        wss.handleUpgrade(request, socket, head, (ws: WebSocket) => {
-          wss.emit('connection', ws, request);
-        });
-      } else {
-        socket.destroy();
-      }
-    });
-
-    // Handle new WebSocket connections
+    // WebSocket 연결 핸들러 — 한 번만 등록
     wss.on('connection', (ws: WebSocket) => {
       const connectionId = connections.addConnection(ws);
       console.error('[node-backend]', `Client connected: ${connectionId}`);
 
-      // Send ready signal
+      // 연결 준비 신호 전송
       connections.sendTo(connectionId, 'BRIDGE_READY');
 
       ws.on('message', (data: Buffer) => {
@@ -119,23 +107,64 @@ export function startWebSocketServer(
       });
     });
 
-    httpServer.on('error', (err: Error) => {
-      reject(err);
-    });
+    // 포트 충돌 시 자동 retry — 최대 10회, 이후 port=0 (OS 동적 할당) fallback
+    const maxRetries = 10;
+    let attempt = 0;
 
-    httpServer.listen(port, '127.0.0.1', () => {
-      const addr = httpServer.address();
-      const assignedPort = typeof addr === 'object' && addr !== null ? addr.port : port;
-      console.error('[node-backend]', `WebSocket server listening on port ${assignedPort}`);
-
-      resolve({
-        connections,
-        port: assignedPort,
-        close: () => {
-          wss.close();
-          httpServer.close();
+    function tryListen(currentPort: number) {
+      const httpServer: Server = createServer(
+        async (req: IncomingMessage, res: ServerResponse) => {
+          if (webviewDir) {
+            await serveStaticFile(webviewDir, req.url ?? '/', res);
+          } else {
+            res.writeHead(404);
+            res.end('Not found');
+          }
         },
+      );
+
+      // /ws 경로만 WebSocket으로 업그레이드
+      httpServer.on('upgrade', (request, socket, head) => {
+        if (request.url === '/ws') {
+          wss.handleUpgrade(request, socket, head, (ws: WebSocket) => {
+            wss.emit('connection', ws, request);
+          });
+        } else {
+          socket.destroy();
+        }
       });
-    });
+
+      httpServer.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE' && attempt < maxRetries) {
+          attempt++;
+          // 최대 retry 횟수 초과 시 port=0으로 OS 동적 할당 fallback
+          const nextPort = attempt < maxRetries ? port + attempt : 0;
+          console.error(
+            '[node-backend]',
+            `Port ${currentPort} busy, trying ${nextPort === 0 ? 'dynamic' : nextPort}...`,
+          );
+          tryListen(nextPort);
+        } else {
+          reject(err);
+        }
+      });
+
+      httpServer.listen(currentPort, '127.0.0.1', () => {
+        const addr = httpServer.address();
+        const assignedPort = typeof addr === 'object' && addr !== null ? addr.port : currentPort;
+        console.error('[node-backend]', `WebSocket server listening on port ${assignedPort}`);
+
+        resolve({
+          connections,
+          port: assignedPort,
+          close: () => {
+            wss.close();
+            httpServer.close();
+          },
+        });
+      });
+    }
+
+    tryListen(port);
   });
 }

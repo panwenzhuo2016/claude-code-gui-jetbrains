@@ -20,8 +20,16 @@ import { applyDiffHandler } from './applyDiff';
 import { rejectDiffHandler } from './rejectDiff';
 import { newSessionHandler } from './newSession';
 import { openSettingsHandler } from './openSettings';
+import { openTerminalHandler } from './openTerminal';
 import { getVersionHandler } from './getVersion';
 import { getAccountHandler } from './getAccount';
+import { reclaimSessionHandler } from './reclaimSession';
+import { getSlashCommandsHandler } from './getSlashCommands';
+import { loginHandler } from './login';
+import { openUrlHandler } from './openUrl';
+import { getAvailableTerminalsHandler } from './getAvailableTerminals';
+import { getDetectedCliPathHandler } from './getDetectedCliPath';
+import { pickFilesHandler } from './pickFiles';
 
 export async function handleMessage(
   connectionId: string,
@@ -89,11 +97,35 @@ export async function handleMessage(
     case 'OPEN_SETTINGS':
       await openSettingsHandler(connectionId, message, connections, bridge);
       break;
+    case 'OPEN_TERMINAL':
+      await openTerminalHandler(connectionId, message, connections, bridge);
+      break;
     case 'GET_VERSION':
       await getVersionHandler(connectionId, message, connections, bridge);
       break;
     case 'GET_ACCOUNT':
       await getAccountHandler(connectionId, message, connections, bridge);
+      break;
+    case 'RECLAIM_SESSION':
+      await reclaimSessionHandler(connectionId, message, connections, bridge);
+      break;
+    case 'GET_SLASH_COMMANDS':
+      await getSlashCommandsHandler(connectionId, message, connections, bridge);
+      break;
+    case 'LOGIN':
+      await loginHandler(connectionId, message, connections, bridge);
+      break;
+    case 'OPEN_URL':
+      await openUrlHandler(connectionId, message, connections, bridge);
+      break;
+    case 'GET_AVAILABLE_TERMINALS':
+      await getAvailableTerminalsHandler(connectionId, message, connections, bridge);
+      break;
+    case 'GET_DETECTED_CLI_PATH':
+      await getDetectedCliPathHandler(connectionId, message, connections, bridge);
+      break;
+    case 'PICK_FILES':
+      await pickFilesHandler(connectionId, message, connections, bridge);
       break;
     default:
       console.error('[node-backend]', `Unknown message type: ${message.type}`);

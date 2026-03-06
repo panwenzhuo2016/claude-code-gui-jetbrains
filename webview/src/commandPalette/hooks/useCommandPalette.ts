@@ -8,15 +8,13 @@ interface UseCommandPaletteOptions {
 }
 
 export function useCommandPalette({ onChange, textareaRef }: UseCommandPaletteOptions) {
-  const { registry } = useCommandPaletteRegistry();
+  const { sections } = useCommandPaletteRegistry();
 
   // --- Panel state (from useSlashCommandPanel) ---
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [showSlashCommands, setShowSlashCommands] = useState(false);
-
-  const sections = useMemo(() => registry.buildSections(), [registry]);
 
   const filteredSections = useMemo(() => {
     if (!filterQuery) return sections;

@@ -4,7 +4,8 @@ import { useDiffs } from '../hooks/useDiffs';
 import { useTools } from '../hooks/useTools';
 import { useBridgeContext } from './BridgeContext';
 import { useSessionContext } from './SessionContext';
-import { LoadedMessageDto, Context } from '../types';
+import { LoadedMessageDto, Context, Attachment, SessionState } from '../types';
+import { MessageRole, LoadedMessageType } from '../dto/common';
 import { InputMode } from '../types/chatInput';
 
 interface ChatStreamContextType {
@@ -20,8 +21,8 @@ interface ChatStreamContextType {
   setInput: (input: string) => void;
 
   // Actions
-  sendMessage: (content: string, inputMode: InputMode, context?: Context[]) => void;
-  handleSubmit: (e: React.FormEvent | undefined, inputMode: InputMode) => void;
+  sendMessage: (content: string, inputMode: InputMode, context?: Context[], attachments?: Attachment[]) => void;
+  handleSubmit: (e: React.FormEvent | undefined, inputMode: InputMode, attachments?: Attachment[]) => void;
   stop: () => void;
   continue: () => void;
   retry: (messageId: string) => void;
@@ -40,6 +41,13 @@ interface ChatStreamContextType {
   // Thinking block global expand/collapse state
   isThinkingExpanded: boolean;
   toggleThinkingExpanded: () => void;
+
+  // Session lifecycle
+  systemInit: Record<string, unknown> | null;
+  resetForSessionSwitch: () => void;
+
+  // Context window usage
+  contextWindowUsage: { inputTokens: number; outputTokens: number; model: string | null } | null;
 }
 
 const ChatStreamContext = createContext<ChatStreamContextType | undefined>(undefined);
@@ -75,20 +83,41 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     },
     onStreamStart: (messageId: string) => {
       console.log('[ChatStreamContext] Stream started:', messageId);
-      session.setSessionState('streaming');
+      session.setSessionState(SessionState.Streaming);
     },
     onStreamEnd: (messageId: string) => {
       console.log('[ChatStreamContext] Stream ended:', messageId);
-      session.setSessionState('idle');
+      session.setSessionState(SessionState.Idle);
     },
     onError: (error: Error) => {
       console.error('[ChatStreamContext] Stream error:', error);
-      session.setSessionState('error');
+      session.setSessionState(SessionState.Error);
     },
-    onSystemMessage: (data: { sessionId: string; content: unknown }) => {
+    onSystemMessage: (data: Record<string, unknown>) => {
       console.log('[ChatStreamContext] System message:', data);
     },
   });
+
+  // 모든 세션별 상태를 한 번에 리셋하는 통합 함수
+  const resetForSessionSwitch = useCallback(() => {
+    chatStream.clearMessages();
+    chatStream.resetStreamState();
+    setInput('');
+    setIsThinkingExpanded(false);
+    tools.clearToolUses();
+    diffs.clearDiffs();
+  }, [chatStream.clearMessages, chatStream.resetStreamState, tools.clearToolUses, diffs.clearDiffs]);
+
+  // 세션 전환 자동 감지: currentSessionId 변경 시 모든 세션별 상태 리셋
+  const prevSessionIdRef = useRef<string | null>(session.currentSessionId);
+  useEffect(() => {
+    const prevId = prevSessionIdRef.current;
+    prevSessionIdRef.current = session.currentSessionId;
+    if (prevId !== null && prevId !== session.currentSessionId) {
+      console.log('[ChatStreamContext] Session switch detected:', prevId, '→', session.currentSessionId);
+      resetForSessionSwitch();
+    }
+  }, [session.currentSessionId, resetForSessionSwitch]);
 
   // ref로 안정화 (useEffect 의존성 churn 방지)
   const toolsRef = useRef(tools);
@@ -105,13 +134,13 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     const unsubscribeToolUse = bridge.subscribe('TOOL_USE', (message: IPCMessage) => {
       console.log('[ChatStreamContext] TOOL_USE received:', message.payload);
       toolsRef.current.addToolUse(message.payload as any);
-      sessionRef.current.setSessionState('waiting_permission');
+      sessionRef.current.setSessionState(SessionState.WaitingPermission);
     });
 
     const unsubscribeDiff = bridge.subscribe('DIFF_PROPOSED', (message: IPCMessage) => {
       console.log('[ChatStreamContext] DIFF_PROPOSED received:', message.payload);
       diffsRef.current.addDiff(message.payload as any);
-      sessionRef.current.setSessionState('has_diff');
+      sessionRef.current.setSessionState(SessionState.HasDiff);
     });
 
     return () => {
@@ -123,7 +152,7 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
 
   // sendMessage: add to local state + send to Kotlin + create session if needed
   const sendMessage = useCallback(
-    (content: string, inputMode: InputMode, context?: Context[]) => {
+    (content: string, inputMode: InputMode, context?: Context[], attachments?: Attachment[]) => {
       // Resolve session ID: use existing or generate new one
       let sessionId = session.currentSessionId;
       const isNewSession = !sessionId;
@@ -135,13 +164,14 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
       }
 
       // Add to local chat state
-      chatStream.addUserMessage(content, context);
+      chatStream.addUserMessage(content, context, attachments);
 
       // Send to bridge with sessionId
       bridge.send('SEND_MESSAGE', {
         sessionId,
         isNewSession,
         content,
+        attachments: attachments?.map(a => ({ ...a.toPayload() })),
         context: context || [],
         workingDir: session.workingDirectory,
         inputMode,
@@ -158,15 +188,11 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
 
   // handleSubmit: convenience wrapper for form submission
   const handleSubmit = useCallback(
-    (e: React.FormEvent | undefined, inputMode: InputMode) => {
-      if (e) {
-        e.preventDefault();
-      }
-
+    (e: React.FormEvent | undefined, inputMode: InputMode, attachments?: Attachment[]) => {
+      if (e) e.preventDefault();
       const trimmedInput = input.trim();
-      if (!trimmedInput) return;
-
-      sendMessage(trimmedInput, inputMode, undefined);
+      if (!trimmedInput && (!attachments || attachments.length === 0)) return;
+      sendMessage(trimmedInput, inputMode, undefined, attachments);
       setInput('');
     },
     [input, sendMessage]
@@ -176,27 +202,41 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
   const stop = useCallback(() => {
     console.log('[ChatStreamContext] Stopping session');
 
+    // Determine interrupt type based on current session state
+    const interruptText = session.sessionState === SessionState.WaitingPermission
+      ? '[Request interrupted by user for tool use]'
+      : '[Request interrupted by user]';
+
+    // Add interrupted message immediately to chat
+    chatStream.appendMessage({
+      type: LoadedMessageType.User,
+      uuid: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      message: { role: MessageRole.User, content: interruptText } as LoadedMessageDto['message'],
+    });
+
     // Stop local streaming
     chatStream.stop();
 
-    // Send stop signal to Kotlin (correct handler: STOP_SESSION, not STOP_STREAMING)
+    // Send stop signal to backend
     bridge.send('STOP_SESSION', {}).catch((error) => {
       console.error('[ChatStreamContext] Failed to stop session:', error);
     });
 
     // Set session state to idle
-    session.setSessionState('idle');
+    session.setSessionState(SessionState.Idle);
   }, [chatStream, bridge, session]);
 
-  // continue: continue generation locally (no Kotlin handler exists)
+  // continue: reset isStopped + send auto-continue message via --resume
   const continueGeneration = useCallback(() => {
-    console.log('[ChatStreamContext] Continuing generation (local only)');
+    console.log('[ChatStreamContext] Continuing generation via sendMessage');
 
-    // Continue local streaming
+    // Reset isStopped state
     chatStream.continue();
 
-    // Note: No Kotlin handler exists for CONTINUE, so just local state change
-  }, [chatStream]);
+    // Auto-send continue message — triggers ensureClaudeProcess(--resume) in backend
+    sendMessage('Please continue from where you left off.', 'ask_before_edit');
+  }, [chatStream, sendMessage]);
 
   // retry: delegate to chatStream
   const retry = useCallback(
@@ -241,6 +281,13 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     // Thinking block global expand/collapse state
     isThinkingExpanded,
     toggleThinkingExpanded,
+
+    // Session lifecycle
+    systemInit: chatStream.systemInit,
+    resetForSessionSwitch,
+
+    // Context window usage
+    contextWindowUsage: chatStream.contextWindowUsage,
   };
 
   return (

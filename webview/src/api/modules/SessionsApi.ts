@@ -80,4 +80,14 @@ export class SessionsApi {
   async activate(sessionId: string): Promise<void> {
     await this.bridge.request('SESSION_CHANGE', { sessionId });
   }
+
+  /**
+   * Reclaim a session that is already in use by another process
+   * Kills the existing process and reloads session messages
+   * POST /sessions/:id/reclaim
+   */
+  async reclaim(sessionId: string): Promise<void> {
+    const { workingDir } = this.getConfig();
+    await this.bridge.request('RECLAIM_SESSION', { sessionId, workingDir });
+  }
 }

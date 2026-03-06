@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ChatMessageArea } from '../ChatMessageArea';
-import type { LoadedMessageDto, ToolUse } from '../../types';
+import type { LoadedMessageDto } from '../../types';
+import { LoadedMessageType, MessageRole } from '../../dto/common';
 
 // Mock contexts
 const mockSessionContext = {
@@ -31,16 +32,12 @@ vi.mock('../MessageBubble', () => ({
   ),
 }));
 
-vi.mock('../ToolCard', () => ({
-  ToolCard: ({ toolUse }: { toolUse: ToolUse }) => (
-    <div data-testid={`tool-card-${toolUse.id}`}>
-      Tool: {toolUse.name} - Status: {toolUse.status}
-    </div>
-  ),
-}));
-
 vi.mock('../ProjectSelector', () => ({
   ProjectSelector: () => <div data-testid="project-selector">Select Project</div>,
+}));
+
+vi.mock('../EmptyState', () => ({
+  EmptyState: () => <div data-testid="empty-state">Type a message</div>,
 }));
 
 describe('ChatMessageArea', () => {
@@ -56,7 +53,7 @@ describe('ChatMessageArea', () => {
   });
 
   it('shows ProjectSelector when no working directory and no kotlinBridge', () => {
-    render(<ChatMessageArea />);
+    render(<ChatMessageArea isStreaming={false} />);
 
     expect(screen.getByTestId('project-selector')).toBeInTheDocument();
     expect(screen.getByText('Select Project')).toBeInTheDocument();
@@ -65,30 +62,30 @@ describe('ChatMessageArea', () => {
   it('shows loading message when no working directory with kotlinBridge', () => {
     (window as any).kotlinBridge = {};
 
-    render(<ChatMessageArea />);
+    render(<ChatMessageArea isStreaming={false} />);
 
-    expect(screen.getByText('워킹 디렉토리를 불러오는 중...')).toBeInTheDocument();
+    expect(screen.getByText('Loading working directory...')).toBeInTheDocument();
     expect(screen.queryByTestId('project-selector')).not.toBeInTheDocument();
   });
 
   it('shows empty state message when no messages with working directory', () => {
     mockSessionContext.workingDirectory = '/test/path';
 
-    render(<ChatMessageArea />);
+    render(<ChatMessageArea isStreaming={false} />);
 
-    expect(screen.getByText('메시지를 입력하세요')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
   });
 
   it('renders user message correctly', () => {
     mockSessionContext.workingDirectory = '/test/path';
     mockChatStreamContext.messages = [{
       uuid: 'msg1',
-      type: 'user',
-      message: { role: 'user', content: 'Hello, assistant!' },
+      type: LoadedMessageType.User,
+      message: { role: MessageRole.User, content: 'Hello, assistant!' },
       timestamp: new Date().toISOString(),
     }];
 
-    render(<ChatMessageArea />);
+    render(<ChatMessageArea isStreaming={false} />);
 
     expect(screen.getByTestId('message-bubble-msg1')).toBeInTheDocument();
     expect(screen.getByText('user: Hello, assistant!')).toBeInTheDocument();
@@ -98,12 +95,12 @@ describe('ChatMessageArea', () => {
     mockSessionContext.workingDirectory = '/test/path';
     mockChatStreamContext.messages = [{
       uuid: 'msg2',
-      type: 'assistant',
-      message: { role: 'assistant', content: 'Hello, user!' },
+      type: LoadedMessageType.Assistant,
+      message: { role: MessageRole.Assistant, content: 'Hello, user!' },
       timestamp: new Date().toISOString(),
     }];
 
-    render(<ChatMessageArea />);
+    render(<ChatMessageArea isStreaming={false} />);
 
     expect(screen.getByTestId('message-bubble-msg2')).toBeInTheDocument();
     expect(screen.getByText('assistant: Hello, user!')).toBeInTheDocument();
@@ -113,9 +110,9 @@ describe('ChatMessageArea', () => {
     mockSessionContext.workingDirectory = '/test/path';
     mockChatStreamContext.messages = [{
       uuid: 'msg3',
-      type: 'assistant',
+      type: LoadedMessageType.Assistant,
       message: {
-        role: 'assistant',
+        role: MessageRole.Assistant,
         content: [
           { type: 'text', text: 'I need to read a file' },
           { type: 'tool_use', id: 'tool1', name: 'read_file', input: { path: '/test.txt' } },
@@ -124,11 +121,9 @@ describe('ChatMessageArea', () => {
       timestamp: new Date().toISOString(),
     }];
 
-    render(<ChatMessageArea />);
+    render(<ChatMessageArea isStreaming={false} />);
 
     expect(screen.getByTestId('message-bubble-msg3')).toBeInTheDocument();
-    expect(screen.getByTestId('tool-card-tool1')).toBeInTheDocument();
-    expect(screen.getByText('Tool: read_file - Status: completed')).toBeInTheDocument();
   });
 
   it('renders multiple messages correctly', () => {
@@ -137,25 +132,25 @@ describe('ChatMessageArea', () => {
     mockChatStreamContext.messages = [
       {
         uuid: 'msg1',
-        type: 'user',
-        message: { role: 'user', content: 'First message' },
+        type: LoadedMessageType.User,
+        message: { role: MessageRole.User, content: 'First message' },
         timestamp: now,
       },
       {
         uuid: 'msg2',
-        type: 'assistant',
-        message: { role: 'assistant', content: 'Second message' },
+        type: LoadedMessageType.Assistant,
+        message: { role: MessageRole.Assistant, content: 'Second message' },
         timestamp: now,
       },
       {
         uuid: 'msg3',
-        type: 'user',
-        message: { role: 'user', content: 'Third message' },
+        type: LoadedMessageType.User,
+        message: { role: MessageRole.User, content: 'Third message' },
         timestamp: now,
       },
     ];
 
-    render(<ChatMessageArea />);
+    render(<ChatMessageArea isStreaming={false} />);
 
     expect(screen.getByTestId('message-bubble-msg1')).toBeInTheDocument();
     expect(screen.getByTestId('message-bubble-msg2')).toBeInTheDocument();
@@ -169,9 +164,9 @@ describe('ChatMessageArea', () => {
     mockSessionContext.workingDirectory = '/test/path';
     mockChatStreamContext.messages = [{
       uuid: 'msg4',
-      type: 'assistant',
+      type: LoadedMessageType.Assistant,
       message: {
-        role: 'assistant',
+        role: MessageRole.Assistant,
         content: [
           { type: 'text', text: 'Using multiple tools' },
           { type: 'tool_use', id: 'tool1', name: 'read_file', input: { path: '/test1.txt' } },
@@ -181,11 +176,8 @@ describe('ChatMessageArea', () => {
       timestamp: new Date().toISOString(),
     }];
 
-    render(<ChatMessageArea />);
+    render(<ChatMessageArea isStreaming={false} />);
 
-    expect(screen.getByTestId('tool-card-tool1')).toBeInTheDocument();
-    expect(screen.getByTestId('tool-card-tool2')).toBeInTheDocument();
-    expect(screen.getByText('Tool: read_file - Status: completed')).toBeInTheDocument();
-    expect(screen.getByText('Tool: write_file - Status: completed')).toBeInTheDocument();
+    expect(screen.getByTestId('message-bubble-msg4')).toBeInTheDocument();
   });
 });

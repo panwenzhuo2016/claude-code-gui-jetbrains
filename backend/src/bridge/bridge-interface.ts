@@ -14,4 +14,10 @@ export interface Bridge {
   rejectDiff(params: { toolUseId?: string }): Promise<void>;
   newSession(): Promise<void>;
   openSettings(): Promise<void>;
+  openTerminal(workingDir: string): Promise<void>;
+  openUrl(url: string): Promise<void>;
+  pickFiles(options: {
+    mode: 'files' | 'folders' | 'both';
+    multiple?: boolean;
+  }): Promise<{ paths: string[] }>;
 }

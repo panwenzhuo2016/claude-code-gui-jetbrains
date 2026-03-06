@@ -6,3 +6,4 @@ export { readSettingsFile, saveSettingToFile } from './settings';
 export { getSessionsList } from './getSessionsList';
 export { loadSessionMessages } from './loadSessionMessages';
 export { getProjectsList } from './getProjectsList';
+export * from './detectTerminals';

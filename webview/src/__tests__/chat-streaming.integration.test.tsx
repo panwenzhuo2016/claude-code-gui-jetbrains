@@ -44,6 +44,8 @@ const mockSession = {
   renameSession: vi.fn(),
   setSessionState: vi.fn(),
   setWorkingDirectory: vi.fn(),
+  setCurrentSessionId: vi.fn(),
+  addNewSession: vi.fn(),
 };
 
 vi.mock('../contexts/SessionContext', () => ({
@@ -82,7 +84,14 @@ function TestChatComponent() {
       <div data-testid="messages">
         {ctx.messages.map((m) => (
           <div key={m.uuid} data-testid={`msg-${m.type}`}>
-            {typeof m.message?.content === 'string' ? m.message.content : 'blocks'}
+            {typeof m.message?.content === 'string'
+              ? m.message.content
+              : Array.isArray(m.message?.content)
+                ? (m.message!.content as Array<{type: string; text?: string}>)
+                    .filter((b) => b.type === 'text')
+                    .map((b) => b.text ?? '')
+                    .join('')
+                : ''}
           </div>
         ))}
       </div>
@@ -164,10 +173,14 @@ describe('채팅 스트리밍 통합 테스트', () => {
     });
 
     expect(screen.getByTestId('msg-user')).toHaveTextContent('Hello');
-    expect(mockBridge.send).toHaveBeenCalledWith('SEND_MESSAGE', {
+    expect(mockBridge.send).toHaveBeenCalledWith('SEND_MESSAGE', expect.objectContaining({
       content: 'Hello',
       context: [],
-    });
+      inputMode: 'ask_before_edit',
+      isNewSession: false,
+      sessionId: 'existing-session',
+      workingDir: '/test',
+    }));
     expect(screen.getByTestId('input')).toHaveValue('');
   });
 

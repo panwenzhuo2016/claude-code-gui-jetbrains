@@ -1,6 +1,8 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Context, getTextContent, LoadedMessageDto } from '../types';
-import { toInstance } from '../dto/common';
+import { Context, getTextContent, LoadedMessageDto, Attachment, isImageAttachment, FileAttachment, FolderAttachment, ContextType } from '../types';
+import type { TextBlockDto, ToolUseBlockDto, ThinkingBlockDto, ImageBlockDto, ImageSourceDto, AnyContentBlockDto } from '../dto/message/ContentBlockDto';
+import { ContentBlockType } from '../dto/message/ContentBlockDto';
+import { toInstance, LoadedMessageType, MessageRole } from '../dto/common';
 
 /** Re-export for backwards compatibility */
 export type { LoadedMessageDto as LoadedMessage } from '../types';
@@ -19,7 +21,7 @@ export interface UseChatStreamOptions {
   /** 에러 발생 시 콜백 */
   onError?: (error: Error) => void;
   /** 시스템 메시지 수신 시 콜백 */
-  onSystemMessage?: (data: { sessionId: string; content: unknown }) => void;
+  onSystemMessage?: (data: Record<string, unknown>) => void;
 }
 
 export interface UseChatStreamReturn {
@@ -30,7 +32,7 @@ export interface UseChatStreamReturn {
   error: Error | null;
 
   // 로컬 메시지 조작 (전송은 하지 않음)
-  addUserMessage: (content: string, context?: Context[]) => void;
+  addUserMessage: (content: string, context?: Context[], attachments?: Attachment[]) => void;
   clearMessages: () => void;
   loadMessages: (msgs: LoadedMessageDto[]) => void;
   appendMessage: (message: LoadedMessageDto) => void;
@@ -46,12 +48,16 @@ export interface UseChatStreamReturn {
   continue: () => void;
   /** 스트림 관련 모든 내부 상태를 초기화 (clear conversation 등에서 사용) */
   resetStreamState: () => void;
+  systemInit: Record<string, unknown> | null;
+  contextWindowUsage: { inputTokens: number; outputTokens: number; model: string | null } | null;
 }
 
 /**
- * Filter messages to only include those in the active conversation chain.
- * Traces parentUuid backwards from the last message to identify the active branch.
- * This handles conversation compaction where abandoned branches should not be displayed.
+ * Filter messages to only include those in active conversation chains.
+ * Finds all leaf messages and traces parentUuid backwards from each leaf.
+ * This preserves all conversation chains (including pre-compact history)
+ * while still filtering out abandoned side-branches.
+ * Summary entries (compact markers) and progress entries are always kept.
  */
 function filterActiveChain(messages: LoadedMessageDto[]): LoadedMessageDto[] {
   if (messages.length === 0) return messages;
@@ -62,22 +68,41 @@ function filterActiveChain(messages: LoadedMessageDto[]): LoadedMessageDto[] {
     if (msg.uuid) byUuid.set(msg.uuid, msg);
   }
 
-  // Trace from last message backwards through parentUuid
-  const activeUuids = new Set<string>();
-  let current: LoadedMessageDto | undefined = messages[messages.length - 1];
-  while (current) {
-    if (current.uuid) activeUuids.add(current.uuid);
-    const parentUuid = current.parentUuid;
-    if (parentUuid && byUuid.has(parentUuid)) {
-      current = byUuid.get(parentUuid);
-    } else {
-      break;
+  // Find all child→parent references to identify leaf messages
+  const hasChild = new Set<string>();
+  for (const msg of messages) {
+    if (msg.parentUuid && byUuid.has(msg.parentUuid)) {
+      hasChild.add(msg.parentUuid);
     }
   }
 
-  // Filter: keep only messages in the active chain
-  // Messages without uuid are excluded (they're not part of any chain)
-  return messages.filter(msg => msg.uuid ? activeUuids.has(msg.uuid) : false);
+  // Find leaf messages (no message references them as parent)
+  // For each leaf, trace back to root — collecting all active UUIDs
+  const activeUuids = new Set<string>();
+  for (const msg of messages) {
+    if (!msg.uuid) continue;
+    if (hasChild.has(msg.uuid)) continue; // not a leaf
+
+    // Trace from this leaf backwards
+    let current: LoadedMessageDto | undefined = msg;
+    while (current) {
+      if (current.uuid) activeUuids.add(current.uuid);
+      const parentUuid = current.parentUuid;
+      if (parentUuid && byUuid.has(parentUuid)) {
+        current = byUuid.get(parentUuid);
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Filter: keep messages in any active chain
+  // progress and summary entries are always kept
+  return messages.filter(msg => {
+    if (msg.type === LoadedMessageType.Progress) return true;
+    if (msg.type === LoadedMessageType.Summary) return true;
+    return msg.uuid ? activeUuids.has(msg.uuid) : false;
+  });
 }
 
 export function useChatStream(options: UseChatStreamOptions): UseChatStreamReturn {
@@ -88,12 +113,25 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   const [isStopped, setIsStopped] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [systemInit, setSystemInit] = useState<Record<string, unknown> | null>(null);
+  const [contextWindowUsage, setContextWindowUsage] = useState<{
+    inputTokens: number;
+    outputTokens: number;
+    model: string | null;
+  } | null>(null);
 
   // RAF 스로틀링 관련 refs
   const pendingTextRef = useRef<string>('');
   const pendingThinkingRef = useRef<string>('');
+  const pendingInputJsonRef = useRef<string>('');              // RAF 프레임 간 input_json_delta 축적용
+  const accumulatedInputJsonRef = useRef<string>('');          // 현재 tool_use 블록의 전체 누적 input JSON 문자열
   const rafIdRef = useRef<number | null>(null);
   const streamingMessageIdRef = useRef<string | null>(null); // setState 비동기 대응
+  const activeBlockIndexRef = useRef<number>(-1);             // 현재 스트리밍 중인 content block의 stream index
+  const activeTextBlockIndexRef = useRef<number>(-1);         // content 배열 내 현재 활성 text 블록 인덱스
+  const activeThinkingBlockIndexRef = useRef<number>(-1);     // content 배열 내 현재 활성 thinking 블록 인덱스
+  const activeToolUseBlockIndexRef = useRef<number>(-1);      // content 배열 내 현재 활성 tool_use 블록 인덱스
+  const turnStartBlockCountRef = useRef<number>(0);           // 현재 턴 시작 시 content 배열의 길이 (병합 기준점)
   const devModeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const devModeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -132,36 +170,60 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
     const textDelta = pendingTextRef.current;
     const thinkingDelta = pendingThinkingRef.current;
-    if (!textDelta && !thinkingDelta) return;
+    const inputJsonDelta = pendingInputJsonRef.current;
+    if (!textDelta && !thinkingDelta && !inputJsonDelta) return;
 
     pendingTextRef.current = '';
     pendingThinkingRef.current = '';
+    pendingInputJsonRef.current = '';
 
     setMessages(prev => prev.map(msg => {
       if (msg.uuid !== msgId) return msg;
 
-      // Get current content as block array
-      const currentBlocks = Array.isArray(msg.message?.content)
-        ? [...(msg.message!.content as any[])]
+      const currentBlocks: AnyContentBlockDto[] = Array.isArray(msg.message?.content)
+        ? [...msg.message!.content]
         : [];
 
-      // Upsert thinking block
+      // Append thinking delta to the active thinking block (index-based)
       if (thinkingDelta) {
-        const idx = currentBlocks.findIndex((b: any) => b.type === 'thinking');
-        if (idx >= 0) {
-          currentBlocks[idx] = { ...currentBlocks[idx], thinking: currentBlocks[idx].thinking + thinkingDelta };
+        const idx = activeThinkingBlockIndexRef.current;
+        if (idx >= 0 && idx < currentBlocks.length && currentBlocks[idx].type === ContentBlockType.Thinking) {
+          const block = currentBlocks[idx] as ThinkingBlockDto;
+          currentBlocks[idx] = { ...block, thinking: block.thinking + thinkingDelta };
         } else {
-          currentBlocks.push({ type: 'thinking', thinking: thinkingDelta });
+          // Fallback: no active thinking block yet, create one
+          currentBlocks.push({ type: ContentBlockType.Thinking, thinking: thinkingDelta } as ThinkingBlockDto);
+          activeThinkingBlockIndexRef.current = currentBlocks.length - 1;
         }
       }
 
-      // Upsert text block
+      // Append text delta to the active text block (index-based)
       if (textDelta) {
-        const idx = currentBlocks.findIndex((b: any) => b.type === 'text');
-        if (idx >= 0) {
-          currentBlocks[idx] = { ...currentBlocks[idx], text: currentBlocks[idx].text + textDelta };
+        const idx = activeTextBlockIndexRef.current;
+        if (idx >= 0 && idx < currentBlocks.length && currentBlocks[idx].type === ContentBlockType.Text) {
+          const block = currentBlocks[idx] as TextBlockDto;
+          currentBlocks[idx] = { ...block, text: block.text + textDelta };
         } else {
-          currentBlocks.push({ type: 'text', text: textDelta });
+          // Fallback: no active text block yet, create one
+          currentBlocks.push({ type: ContentBlockType.Text, text: textDelta } as TextBlockDto);
+          activeTextBlockIndexRef.current = currentBlocks.length - 1;
+        }
+      }
+
+      // Append input JSON delta to the active tool_use block
+      if (inputJsonDelta) {
+        const idx = activeToolUseBlockIndexRef.current;
+        if (idx >= 0 && idx < currentBlocks.length && currentBlocks[idx].type === ContentBlockType.ToolUse) {
+          const block = currentBlocks[idx] as ToolUseBlockDto;
+          // accumulatedInputJsonRef holds the full JSON string across all RAF frames
+          accumulatedInputJsonRef.current += inputJsonDelta;
+          let parsedInput = block.input;
+          try {
+            parsedInput = JSON.parse(accumulatedInputJsonRef.current) as Record<string, unknown>;
+          } catch {
+            // Not yet valid JSON, keep accumulating
+          }
+          currentBlocks[idx] = { ...block, input: parsedInput };
         }
       }
 
@@ -176,20 +238,46 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     }
   }, [flushPendingDeltas]);
 
-  // Start streaming helper
+  // Start streaming helper - initializes all streaming refs
   const startStreaming = useCallback((messageId: string) => {
     setIsStreaming(true);
     setStreamingMessageId(messageId);
     streamingMessageIdRef.current = messageId;
     pendingTextRef.current = '';
     pendingThinkingRef.current = '';
+    pendingInputJsonRef.current = '';
+    accumulatedInputJsonRef.current = '';
+    activeBlockIndexRef.current = -1;
+    activeTextBlockIndexRef.current = -1;
+    activeThinkingBlockIndexRef.current = -1;
+    activeToolUseBlockIndexRef.current = -1;
+    turnStartBlockCountRef.current = 0;
     onStreamStartRef.current?.(messageId);
   }, []);
 
+  // Ensure a streaming placeholder assistant message exists.
+  // Returns the current streamingMessageId (creating one if needed).
+  const ensureStreamingPlaceholder = useCallback((): string => {
+    if (streamingMessageIdRef.current) {
+      return streamingMessageIdRef.current;
+    }
+    const assistantMessageId = generateMessageId();
+    const assistantMessage: LoadedMessageDto = {
+      type: LoadedMessageType.Assistant,
+      uuid: assistantMessageId,
+      timestamp: new Date().toISOString(),
+      message: { role: MessageRole.Assistant, content: [] } as LoadedMessageDto['message'],
+      isStreaming: true,
+    };
+    appendMessage(assistantMessage);
+    startStreaming(assistantMessageId);
+    return assistantMessageId;
+  }, [generateMessageId, appendMessage, startStreaming]);
+
   // End streaming helper
   const endStreaming = useCallback(() => {
-    // Flush any remaining delta
-    if ((pendingTextRef.current || pendingThinkingRef.current) && streamingMessageIdRef.current) {
+    // Flush any remaining delta (including input JSON)
+    if ((pendingTextRef.current || pendingThinkingRef.current || pendingInputJsonRef.current) && streamingMessageIdRef.current) {
       flushPendingDeltas();
     }
     if (rafIdRef.current) {
@@ -206,31 +294,74 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     setIsStreaming(false);
     setStreamingMessageId(null);
     streamingMessageIdRef.current = null;
+    activeBlockIndexRef.current = -1;
+    activeTextBlockIndexRef.current = -1;
+    activeThinkingBlockIndexRef.current = -1;
+    activeToolUseBlockIndexRef.current = -1;
+    turnStartBlockCountRef.current = 0;
+    accumulatedInputJsonRef.current = '';
   }, [flushPendingDeltas, updateMessage]);
 
   // addUserMessage - 로컬 상태 조작만 (bridge.send 하지 않음)
-  const addUserMessage = useCallback((content: string, context?: Context[]) => {
-    if (!content.trim() || isStreaming) return;
+  const addUserMessage = useCallback((content: string, context?: Context[], attachments?: Attachment[]) => {
+    if (!content.trim() && (!attachments || attachments.length === 0)) return;
+    if (isStreaming) return;
 
     setError(null);
+    setIsStopped(false);
+
+    // 파일/폴더 첨부를 context로 변환
+    const fileContexts: Context[] = (attachments ?? [])
+      .filter(att => !isImageAttachment(att))
+      .map(att => ({
+        type: ContextType.File,
+        path: (att as FileAttachment | FolderAttachment).absolutePath,
+        content: att.displayLabel,
+      }));
+    const allContexts = [...(context ?? []), ...fileContexts];
+
+    // 이미지만 ImageBlockDto로 변환
+    // isContentBlockArray() type guard는 duck-typing이므로 plain object도 통과한다.
+    // ImageAttachments 컴포넌트도 속성 접근만 하므로 plain object로 충분하다.
+    let messageContent: string | AnyContentBlockDto[];
+    const imageAttachments = (attachments ?? []).filter(isImageAttachment);
+    if (imageAttachments.length > 0) {
+      const blocks: AnyContentBlockDto[] = [];
+      if (content.trim()) {
+        blocks.push({ type: ContentBlockType.Text, text: content.trim() } as TextBlockDto);
+      }
+      for (const att of imageAttachments) {
+        blocks.push({
+          type: ContentBlockType.Image,
+          source: {
+            type: 'base64',
+            media_type: att.mimeType,
+            data: att.base64,
+          } as ImageSourceDto,
+        } as ImageBlockDto);
+      }
+      messageContent = blocks;
+    } else {
+      messageContent = content.trim();
+    }
 
     // Create user message in JSONL structure
     const userMessage: LoadedMessageDto = {
-      type: 'user',
+      type: LoadedMessageType.User,
       uuid: generateMessageId(),
       timestamp: new Date().toISOString(),
-      message: { role: 'user', content: content.trim() } as any,
-      context,
+      message: { role: MessageRole.User, content: messageContent } as any,
+      context: allContexts,
     };
     appendMessage(userMessage);
 
     // Create assistant placeholder
     const assistantMessageId = generateMessageId();
     const assistantMessage: LoadedMessageDto = {
-      type: 'assistant',
+      type: LoadedMessageType.Assistant,
       uuid: assistantMessageId,
       timestamp: new Date().toISOString(),
-      message: { role: 'assistant', content: [] } as any,
+      message: { role: MessageRole.Assistant, content: [] } as any,
       isStreaming: true,
     };
     appendMessage(assistantMessage);
@@ -270,7 +401,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   // LoadedMessageDto's @Type/@Transform decorators handle nested transformation automatically.
   const loadMessages = useCallback((msgs: LoadedMessageDto[]) => {
     const convertedMessages = msgs
-      // .filter(raw => raw.type === 'user' || raw.type === 'assistant')
+      // .filter(raw => raw.type === LoadedMessageType.User || raw.type === LoadedMessageType.Assistant)
       .map(raw => toInstance(LoadedMessageDto, raw));
 
     // Build active chain by tracing parentUuid from the last message
@@ -289,7 +420,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     // Find the last user message before this message
     let userMessage: LoadedMessageDto | null = null;
     for (let i = messageIndex; i >= 0; i--) {
-      if (messages[i].type === 'user') {
+      if (messages[i].type === LoadedMessageType.User) {
         userMessage = messages[i];
         break;
       }
@@ -315,9 +446,8 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
   // Stop
   const stop = useCallback(() => {
-    setIsStopped(true);
-    setIsStreaming(false);
-  }, []);
+    endStreaming();
+  }, [endStreaming]);
 
   // Continue
   const continueGeneration = useCallback(() => {
@@ -327,11 +457,20 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   // Reset all stream-related internal state (for clear conversation)
   const resetStreamState = useCallback(() => {
     setIsStopped(false);
+    setSystemInit(null);
+    setContextWindowUsage(null);
     setIsStreaming(false);
     setStreamingMessageId(null);
     streamingMessageIdRef.current = null;
     pendingTextRef.current = '';
     pendingThinkingRef.current = '';
+    pendingInputJsonRef.current = '';
+    accumulatedInputJsonRef.current = '';
+    activeBlockIndexRef.current = -1;
+    activeTextBlockIndexRef.current = -1;
+    activeThinkingBlockIndexRef.current = -1;
+    activeToolUseBlockIndexRef.current = -1;
+    turnStartBlockCountRef.current = 0;
     if (rafIdRef.current) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
@@ -354,84 +493,175 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
       // 시스템 메시지 판별
       if (payload?.eventType === 'system') {
-        onSystemMessageRef.current?.({
-          sessionId: payload.sessionId as string,
-          content: payload.content,
-        });
-        return; // delta 처리 스킵
+        if (payload.subtype === 'init') {
+          setSystemInit(payload as Record<string, unknown>);
+        }
+        onSystemMessageRef.current?.(payload as Record<string, unknown>);
+        return;
       }
 
-      // text_delta 처리
+      const event = payload?.event as string | undefined;
       const delta = payload?.delta as Record<string, unknown> | undefined;
-      if (delta && delta.type === 'text_delta' && delta.text) {
-        // 첫 delta 시 streamingMessageId가 없으면 placeholder 자동 생성
-        if (!streamingMessageIdRef.current) {
-          const assistantMessageId = generateMessageId();
-          const assistantMessage: LoadedMessageDto = {
-            type: 'assistant',
-            uuid: assistantMessageId,
-            timestamp: new Date().toISOString(),
-            message: { role: 'assistant', content: [] } as any,
-            isStreaming: true,
-          };
-          appendMessage(assistantMessage);
-          startStreaming(assistantMessageId);
+
+      // content_block_start: 새로운 content block 시작
+      if (event === 'content_block_start') {
+        ensureStreamingPlaceholder();
+
+        const contentBlock = payload?.content_block as { type: ContentBlockType; id?: string; name?: string; text?: string; thinking?: string; input?: Record<string, unknown> } | undefined;
+        const blockIndex = payload?.index as number | undefined;
+        if (!contentBlock) return;
+
+        if (blockIndex !== undefined) {
+          activeBlockIndexRef.current = blockIndex;
         }
 
-        // RAF 기반 축적
+        // content 배열에 새 블록을 push하고 활성 인덱스를 기록
+        setMessages(prev => prev.map(msg => {
+          if (msg.uuid !== streamingMessageIdRef.current) return msg;
+
+          const currentBlocks: AnyContentBlockDto[] = Array.isArray(msg.message?.content)
+            ? [...msg.message!.content]
+            : [];
+
+          if (contentBlock.type === ContentBlockType.Text) {
+            const newBlock: TextBlockDto = { type: ContentBlockType.Text, text: contentBlock.text ?? '' } as TextBlockDto;
+            currentBlocks.push(newBlock);
+            activeTextBlockIndexRef.current = currentBlocks.length - 1;
+          } else if (contentBlock.type === ContentBlockType.ToolUse) {
+            const newBlock: ToolUseBlockDto = {
+              type: ContentBlockType.ToolUse,
+              id: contentBlock.id ?? '',
+              name: contentBlock.name ?? '',
+              input: contentBlock.input ?? {},
+            } as ToolUseBlockDto;
+            currentBlocks.push(newBlock);
+            activeToolUseBlockIndexRef.current = currentBlocks.length - 1;
+            // Reset accumulated input JSON for new tool_use block
+            accumulatedInputJsonRef.current = '';
+          } else if (contentBlock.type === ContentBlockType.Thinking) {
+            const newBlock: ThinkingBlockDto = { type: ContentBlockType.Thinking, thinking: contentBlock.thinking ?? '' } as ThinkingBlockDto;
+            currentBlocks.push(newBlock);
+            activeThinkingBlockIndexRef.current = currentBlocks.length - 1;
+          }
+
+          return { ...msg, message: { ...msg.message!, content: currentBlocks } };
+        }));
+        return;
+      }
+
+      // content_block_stop: 현재 블록 종료
+      if (event === 'content_block_stop') {
+        activeBlockIndexRef.current = -1;
+        // Flush any remaining delta for the completed block
+        if (pendingTextRef.current || pendingThinkingRef.current || pendingInputJsonRef.current) {
+          flushPendingDeltas();
+        }
+        return;
+      }
+
+      // content_block_delta 처리
+      if (!delta) return;
+
+      // text_delta 처리
+      if (delta.type === 'text_delta' && delta.text) {
+        ensureStreamingPlaceholder();
         pendingTextRef.current += delta.text as string;
         scheduleFlush();
       }
 
       // thinking_delta 처리
-      if (delta && delta.type === 'thinking_delta' && delta.thinking) {
-        // 첫 delta 시 streamingMessageId가 없으면 placeholder 자동 생성
-        if (!streamingMessageIdRef.current) {
-          const assistantMessageId = generateMessageId();
-          const assistantMessage: LoadedMessageDto = {
-            type: 'assistant',
-            uuid: assistantMessageId,
-            timestamp: new Date().toISOString(),
-            message: { role: 'assistant', content: [] } as any,
-            isStreaming: true,
-          };
-          appendMessage(assistantMessage);
-          startStreaming(assistantMessageId);
-        }
-
+      if (delta.type === 'thinking_delta' && delta.thinking) {
+        ensureStreamingPlaceholder();
         pendingThinkingRef.current += delta.thinking as string;
         scheduleFlush();
       }
 
-      // tool_use_delta 처리 (추후 확장)
-      if (delta && delta.type === 'tool_use_delta') {
-        // TODO: tool_use 정보 축적
-        console.log('[useChatStream] tool_use_delta received:', delta);
+      // input_json_delta 처리 (tool_use의 input 축적)
+      if (delta.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
+        ensureStreamingPlaceholder();
+        pendingInputJsonRef.current += delta.partial_json;
+        scheduleFlush();
+      }
+
+      // tool_use_delta 처리 (일부 백엔드에서 이 타입으로 올 수 있음)
+      if (delta.type === 'tool_use_delta') {
+        // tool_use_delta는 보통 content_block_start에서 이미 처리됨
+        // partial_json이 있으면 input_json_delta와 동일하게 처리
+        if (typeof delta.partial_json === 'string') {
+          ensureStreamingPlaceholder();
+          pendingInputJsonRef.current += delta.partial_json;
+          scheduleFlush();
+        }
       }
     });
 
     // ASSISTANT_MESSAGE handler
+    // 에이전트 루프에서 각 턴마다 해당 턴의 content만 포함하여 발생.
+    // 이전 턴의 블록을 보존하면서 현재 턴의 스트리밍 블록을 최종 버전으로 교체.
     const unsubscribeAssistantMessage = bridge.subscribe('ASSISTANT_MESSAGE', (message) => {
       const payload = message.payload;
       const messageId = payload?.messageId as string;
-      const content = payload?.content as Array<any>;
-
-      if (!content || !Array.isArray(content)) return;
-
-      // 기존 assistant 메시지 업데이트 또는 새로 생성
-      if (streamingMessageIdRef.current) {
-        updateMessage(streamingMessageIdRef.current, {
-          message: { role: 'assistant', content } as any,
-          isStreaming: false,
-          message_id: messageId,
+      const incomingContent = payload?.content;
+      const assistantModel = payload?.model as string | null;
+      const assistantUsage = payload?.usage as { input_tokens?: number; output_tokens?: number } | null;
+      if (assistantUsage && typeof assistantUsage.input_tokens === 'number') {
+        setContextWindowUsage({
+          inputTokens: assistantUsage.input_tokens,
+          outputTokens: assistantUsage.output_tokens ?? 0,
+          model: assistantModel,
         });
+      }
+
+      if (!incomingContent || !Array.isArray(incomingContent)) return;
+      const finalTurnBlocks = incomingContent as AnyContentBlockDto[];
+
+      if (streamingMessageIdRef.current) {
+        // Flush any pending deltas before replacing
+        if (pendingTextRef.current || pendingThinkingRef.current || pendingInputJsonRef.current) {
+          flushPendingDeltas();
+        }
+
+        // Replace current turn's streaming blocks with final blocks from ASSISTANT_MESSAGE.
+        // Blocks before turnStartBlockCountRef are from previous turns and must be preserved.
+        const turnStart = turnStartBlockCountRef.current;
+
+        setMessages(prev => prev.map(msg => {
+          if (msg.uuid !== streamingMessageIdRef.current) return msg;
+
+          const existingBlocks: AnyContentBlockDto[] = Array.isArray(msg.message?.content)
+            ? [...msg.message!.content]
+            : [];
+
+          // Preserve blocks from previous turns, replace current turn's blocks
+          const preservedBlocks = existingBlocks.slice(0, turnStart);
+          const mergedBlocks = [...preservedBlocks, ...finalTurnBlocks];
+
+          // Update turnStartBlockCount for the next turn
+          turnStartBlockCountRef.current = mergedBlocks.length;
+
+          return {
+            ...msg,
+            message: { ...msg.message!, content: mergedBlocks },
+            isStreaming: false,
+            message_id: messageId,
+          };
+        }));
+
+        // Reset active block indices (this turn is done, next turn may start new blocks)
+        activeBlockIndexRef.current = -1;
+        activeTextBlockIndexRef.current = -1;
+        activeThinkingBlockIndexRef.current = -1;
+        activeToolUseBlockIndexRef.current = -1;
+        accumulatedInputJsonRef.current = '';
+        // NOTE: streamingMessageIdRef is NOT reset here - next turn's stream_event
+        // may continue with the same message. Only RESULT_MESSAGE resets it.
       } else {
-        // 새 메시지 추가
+        // 새 메시지 추가 (스트리밍 없이 바로 온 경우)
         const assistantMessage: LoadedMessageDto = {
-          type: 'assistant',
+          type: LoadedMessageType.Assistant,
           uuid: generateMessageId(),
           timestamp: new Date().toISOString(),
-          message: { role: 'assistant', content } as any,
+          message: { role: MessageRole.Assistant, content: finalTurnBlocks } as LoadedMessageDto['message'],
           isStreaming: false,
           message_id: messageId,
         };
@@ -445,7 +675,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       const errorData = payload?.error as { code?: string; message?: string; details?: string } | null;
 
       // Flush 잔여 buffer
-      if ((pendingTextRef.current || pendingThinkingRef.current) && streamingMessageIdRef.current) {
+      if ((pendingTextRef.current || pendingThinkingRef.current || pendingInputJsonRef.current) && streamingMessageIdRef.current) {
         flushPendingDeltas();
       }
 
@@ -456,6 +686,17 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
         onErrorRef.current?.(err);
       }
 
+      // Context window usage 추출
+      const usageData = payload?.usage as { input_tokens?: number; output_tokens?: number } | null;
+      const modelStr = payload?.model as string | null;
+      if (usageData && typeof usageData.input_tokens === 'number') {
+        setContextWindowUsage({
+          inputTokens: usageData.input_tokens,
+          outputTokens: usageData.output_tokens ?? 0,
+          model: modelStr,
+        });
+      }
+
       // 스트리밍 종료
       endStreaming();
     });
@@ -463,10 +704,19 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     // SERVICE_ERROR handler
     const unsubscribeServiceError = bridge.subscribe('SERVICE_ERROR', (message) => {
       const payload = message.payload;
-      const errorType = payload?.type as string;
-      const reason = payload?.reason as string;
+      const errorType = payload?.type as string | undefined;
+      const reason = payload?.reason as string | undefined;
+      const errorField = payload?.error as string | undefined;
 
-      const err = new Error(`Service error: ${errorType} - ${reason}`);
+      // 두 가지 페이로드 형식 지원:
+      // 형식 1 (close handler): { type: 'CLI_EXIT_ERROR', reason: '...', error: '...' }
+      // 형식 2 (spawn error):   { error: '...' }
+      const errorMessage = reason || errorField || 'Unknown service error';
+      const err = new Error(
+        errorType
+          ? `Service error: ${errorType} - ${errorMessage}`
+          : `Service error: ${errorMessage}`
+      );
       setError(err);
       onErrorRef.current?.(err);
       endStreaming();
@@ -478,12 +728,36 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       if (!content) return;
 
       const userMessage: LoadedMessageDto = {
-        type: 'user',
+        type: LoadedMessageType.User,
         uuid: generateMessageId(),
         timestamp: new Date().toISOString(),
-        message: { role: 'user', content } as any,
+        message: { role: MessageRole.User, content } as any,
       };
       appendMessage(userMessage);
+    });
+
+    // PROGRESS_MESSAGE handler — sub-agent progress (Task 블록의 자식 도구 호출)
+    const unsubscribeProgress = bridge.subscribe('PROGRESS_MESSAGE', (message: IPCMessage) => {
+      const payload = message.payload;
+      if (!payload) return;
+
+      const progressEntry: LoadedMessageDto = {
+        type: LoadedMessageType.Progress,
+        uuid: (payload.uuid as string) || generateMessageId(),
+        parentToolUseID: payload.parentToolUseID as string,
+        data: payload.data as any,
+        timestamp: (payload.timestamp as string) ?? new Date().toISOString(),
+      };
+      appendMessage(progressEntry);
+    });
+
+    // STREAM_END handler — 스트림 종료 안전망
+    // RESULT_MESSAGE나 SERVICE_ERROR가 도착하지 않은 경우에도 스트리밍 상태를 정리
+    const unsubscribeStreamEnd = bridge.subscribe('STREAM_END', () => {
+      if (streamingMessageIdRef.current) {
+        console.warn('[useChatStream] STREAM_END received while still streaming — ending stream as safety net');
+        endStreaming();
+      }
     });
 
     // Cleanup
@@ -493,6 +767,8 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       unsubscribeResultMessage();
       unsubscribeServiceError();
       unsubscribeUserBroadcast();
+      unsubscribeProgress();
+      unsubscribeStreamEnd();
     };
   // bridge.subscribe는 useBridge의 useCallback([], [])이므로 안정적.
   // 나머지 콜백들은 ref로 안정화했으므로 의존성에서 제외.
@@ -529,5 +805,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     stop,
     continue: continueGeneration,
     resetStreamState,
+    systemInit,
+    contextWindowUsage,
   };
 }

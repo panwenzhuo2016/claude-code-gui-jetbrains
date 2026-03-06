@@ -1,10 +1,9 @@
 import React from 'react';
 import { LoadedMessageDto, isContentBlockArray } from '../../types';
-import { ToolUseBlockDto, ThinkingBlockDto } from '../../dto/message/ContentBlockDto';
+import { ToolUseBlockDto, ThinkingBlockDto, ContentBlockType } from '../../dto/message/ContentBlockDto';
 import { StreamingMessage } from '../StreamingMessage';
 import { ToolRenderer } from './ToolRenderer';
 import {ThinkingStreamingMessage} from "@/components/ThinkingStreamingMessage.tsx";
-import {ToolWrapper} from "@/components/message-renderers/ToolRenderers/common";
 
 interface AssistantMessageRendererProps {
   message: LoadedMessageDto;
@@ -23,8 +22,8 @@ export const AssistantMessageRenderer: React.FC<AssistantMessageRendererProps> =
     const isEmpty = typeof content === 'string'
       ? content.trim() === ''
       : blocks.every(block => {
-          if (block.type === 'text') return block.text.trim() === '';
-          if (block.type === 'thinking') return !(block as ThinkingBlockDto).thinking;
+          if (block.type === ContentBlockType.Text) return block.text.trim() === '';
+          if (block.type === ContentBlockType.Thinking) return !(block as ThinkingBlockDto).thinking;
           return false;
         });
     if (isEmpty) return null;
@@ -32,8 +31,6 @@ export const AssistantMessageRenderer: React.FC<AssistantMessageRendererProps> =
 
   return (
       <>
-        {/*{message.isStreaming && <StreamingIndicator />}*/}
-
         {hasContent ? (
             <>
               {typeof content === 'string' ? (
@@ -45,7 +42,7 @@ export const AssistantMessageRenderer: React.FC<AssistantMessageRendererProps> =
                   />
               ) : (
                   blocks.map((block, index) => {
-                    if (block.type === 'thinking') {
+                    if (block.type === ContentBlockType.Thinking) {
                       return (
                           <ThinkingStreamingMessage
                               key={`${message.uuid}-thinking-${index}`}
@@ -56,7 +53,7 @@ export const AssistantMessageRenderer: React.FC<AssistantMessageRendererProps> =
                           />
                       );
                     }
-                    if (block.type === 'text') {
+                    if (block.type === ContentBlockType.Text) {
                       return (
                           <StreamingMessage
                               key={`${message.uuid}-text-${index}`}
@@ -67,7 +64,7 @@ export const AssistantMessageRenderer: React.FC<AssistantMessageRendererProps> =
                           />
                       );
                     }
-                    if (block.type === 'tool_use') {
+                    if (block.type === ContentBlockType.ToolUse) {
                       return (
                           <ToolRenderer
                               key={(block as ToolUseBlockDto).id}
@@ -80,11 +77,7 @@ export const AssistantMessageRenderer: React.FC<AssistantMessageRendererProps> =
                   })
               )}
             </>
-        ) : (
-            <ToolWrapper message={message}>
-              <span className="text-zinc-600 italic">Thinking...</span>
-            </ToolWrapper>
-        )}
+        ) : null}
 
         {/*{message.context && <ContextPills context={message.context} />}*/}
       </>

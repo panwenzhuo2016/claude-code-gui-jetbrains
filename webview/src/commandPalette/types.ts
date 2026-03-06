@@ -21,16 +21,19 @@ export interface CommandPaletteServices {
     continue: () => void;
     clearMessages: () => void;
     resetStreamState: () => void;
+    resetForSessionSwitch: () => void;
   };
   session: {
     currentSessionId: string | null;
     sessionState: SessionState;
+    workingDirectory: string | null;
     setCurrentSessionId: (id: string | null) => void;
     setSessionState: (state: SessionState) => void;
   };
   adapter: {
     openNewTab: () => Promise<void>;
     openSettings: () => Promise<void>;
+    openTerminal: (workingDir: string) => Promise<void>;
   };
 }
 

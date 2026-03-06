@@ -1,15 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
-import { devBridgePlugin } from './dev-bridge';
 
 export default defineConfig({
-  plugins: [react(), devBridgePlugin()],
+  plugins: [react()],
   base: './',
-  server: {},
+  server: {
+    port: 5173,
+    proxy: {
+      // WebSocket 요청을 Node.js 백엔드로 프록시
+      '/ws': {
+        target: 'ws://localhost:19836',
+        ws: true,
+      },
+    },
+  },
   build: {
-    outDir: '../src/main/resources/webview',
+    outDir: 'dist',
     emptyOutDir: true,
+    assetsInlineLimit: 10240,
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name].js',

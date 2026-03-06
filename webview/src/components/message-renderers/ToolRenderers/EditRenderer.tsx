@@ -1,6 +1,9 @@
+import {useMemo, useRef, useState, useEffect} from "react";
 import {ToolUseBlockDto} from "@/types";
 import {getAdapter} from "@/adapters";
 import {RendererProps, ToolHeader, ToolWrapper} from "./common";
+// @ts-ignore
+import {diffAsText} from "unidiff";
 
 class EditToolUseDto extends ToolUseBlockDto {
     caller: { type: 'direct' };
@@ -11,18 +14,56 @@ class EditToolUseDto extends ToolUseBlockDto {
     };
 }
 
-function summarizeDiff(oldStr: string, newStr: string): string {
-    const oldLines = oldStr ? oldStr.split('\n').length : 0;
-    const newLines = newStr ? newStr.split('\n').length : 0;
-    const added = Math.max(0, newLines - oldLines);
-    const removed = Math.max(0, oldLines - newLines);
-
-    const parts: string[] = [];
-    if (added > 0) parts.push(`Added ${added} line${added > 1 ? 's' : ''}`);
-    if (removed > 0) parts.push(`Removed ${removed} line${removed > 1 ? 's' : ''}`);
-    if (parts.length === 0) parts.push(`Changed ${oldLines} line${oldLines > 1 ? 's' : ''}`);
-    return parts.join(', ');
+interface StructuredPatch {
+    oldStart: number;
+    oldLines: number;
+    newStart: number;
+    newLines: number;
+    lines: string[];
 }
+
+interface EditToolUseResult {
+    structuredPatch?: StructuredPatch[];
+}
+
+enum DiffLineType {
+    Add = 'add',
+    Delete = 'delete',
+    Context = 'context',
+}
+
+interface DiffLine {
+    type: DiffLineType;
+    content: string;
+}
+
+function parseLine(line: string): DiffLine {
+    if (line.startsWith('+')) return {type: DiffLineType.Add, content: line.slice(1)};
+    if (line.startsWith('-')) return {type: DiffLineType.Delete, content: line.slice(1)};
+    return {type: DiffLineType.Context, content: line.startsWith(' ') ? line.slice(1) : line};
+}
+
+function fromStructuredPatch(patches: StructuredPatch[]): DiffLine[] {
+    return patches.flatMap((patch) => patch.lines.map(parseLine));
+}
+
+function fromDiffText(diffText: string): DiffLine[] {
+    return diffText.split('\n')
+        .filter((line) => !line.startsWith('---') && !line.startsWith('+++') && !line.startsWith('@@'))
+        .map(parseLine);
+}
+
+const lineStyles: Record<DiffLineType, string> = {
+    [DiffLineType.Add]: 'bg-green-500/15 text-green-400',
+    [DiffLineType.Delete]: 'bg-red-500/15 text-red-400',
+    [DiffLineType.Context]: 'text-zinc-400',
+};
+
+const prefixMap: Record<DiffLineType, string> = {
+    [DiffLineType.Add]: '+',
+    [DiffLineType.Delete]: '-',
+    [DiffLineType.Context]: ' ',
+};
 
 export function EditRenderer(props: RendererProps) {
     const toolUse = props.toolUse as unknown as EditToolUseDto;
@@ -31,14 +72,64 @@ export function EditRenderer(props: RendererProps) {
     const fileName = path.split('/').reverse()[0];
     const oldString = toolUse.input?.old_string ?? '';
     const newString = toolUse.input?.new_string ?? '';
-    const summary = summarizeDiff(oldString, newString);
+    const result = props.toolResult?.toolUseResult as EditToolUseResult | undefined;
+
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [containerWidth, setContainerWidth] = useState<number>(0);
+
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setContainerWidth(entry.contentRect.width);
+            }
+        });
+        observer.observe(el);
+        setContainerWidth(el.getBoundingClientRect().width);
+
+        return () => observer.disconnect();
+    }, []);
+
+    const diffLines = useMemo(() => {
+        const patches = result?.structuredPatch;
+        if (Array.isArray(patches) && patches.length > 0) {
+            return fromStructuredPatch(patches);
+        }
+        if (!oldString && !newString) return [];
+        try {
+            const text = diffAsText(oldString, newString, {context: 3}) as string;
+            if (!text) return [];
+            return fromDiffText(text);
+        } catch {
+            return [];
+        }
+    }, [result, oldString, newString]);
+
+    const showDiff = containerWidth >= 400 && diffLines.length > 0;
 
     return (
         <ToolWrapper message={props.message}>
-            <ToolHeader name={name} className="mb-[2px]" inProgress={!props.toolResult}>
+            <ToolHeader name={name} className="mb-[4px]" inProgress={!props.toolResult}>
                 <div className="text-white/80 text-[11px] cursor-pointer hover:underline font-mono" onClick={() => getAdapter().openFile(path)}>{fileName}</div>
             </ToolHeader>
-            <div className="text-white/50 text-[11px]">{summary}</div>
+            <div ref={containerRef}>
+                <div className="text-white/50 text-[11px] mb-1">Modified</div>
+
+                {showDiff && (
+                    <div className="rounded overflow-hidden border border-white/10 mt-2.5">
+                        <pre className="text-[12px] leading-[1.5] font-mono overflow-x-auto m-0">
+                            {diffLines.map((line, i) => (
+                                <div key={i} className={`${lineStyles[line.type]}`}>
+                                    <div className={`${prefixMap[line.type].trim() ? 'inline-flex' : 'inline-block'} items-center justify-center w-4 select-none bg-zinc-600/20`}>{prefixMap[line.type]}</div>
+                                    {line.content}
+                                </div>
+                            ))}
+                        </pre>
+                    </div>
+                )}
+            </div>
         </ToolWrapper>
-    )
+    );
 }

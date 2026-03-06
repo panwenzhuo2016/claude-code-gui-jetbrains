@@ -28,6 +28,7 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.terminal</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Sidebar button that opens Editor Tab -->
@@ -48,6 +49,10 @@
         <!-- Project service for session broadcast (Pub/Sub) -->
         <projectService
             serviceImplementation="com.github.yhk1038.claudecodegui.services.SessionBroadcastService"/>
+
+        <!-- Project service for Node.js backend process management (singleton per project) -->
+        <projectService
+            serviceImplementation="com.github.yhk1038.claudecodegui.services.NodeBackendService"/>
 
         <!-- Application service for CLI management -->
         <applicationService

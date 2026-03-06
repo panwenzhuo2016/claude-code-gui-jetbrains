@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useChatStream, type LoadedMessage } from '../useChatStream';
 import type { LoadedMessageDto } from '../../types';
+import { ContextType } from '../../types';
+import { LoadedMessageType, MessageRole } from '../../dto/common';
 
 // Mock requestAnimationFrame and cancelAnimationFrame
 const rafCallbacks: ((time: number) => void)[] = [];
@@ -105,7 +107,7 @@ describe('useChatStream', () => {
 
       const assistantMsg = result.current.messages[1];
       expect(assistantMsg.type).toBe('assistant');
-      expect(assistantMsg.message?.content).toBe('');
+      expect(assistantMsg.message?.content).toEqual([]);
       expect(assistantMsg.isStreaming).toBe(true);
       expect(result.current.isStreaming).toBe(true);
       expect(result.current.streamingMessageId).toBe(assistantMsg.uuid);
@@ -146,7 +148,7 @@ describe('useChatStream', () => {
       const { result } = renderHook(() => useChatStream({ bridge }));
 
       const context = [
-        { type: 'file' as const, path: '/test.ts', content: 'test content' },
+        { type: ContextType.File, path: '/test.ts', content: 'test content' },
       ];
 
       act(() => {
@@ -195,7 +197,7 @@ describe('useChatStream', () => {
         flushRAF();
       });
 
-      expect(result.current.messages[0].message?.content).toBe('Hello world!');
+      expect(result.current.messages[0].message?.content).toEqual([{ type: 'text', text: 'Hello world!' }]);
     });
 
     it('isStreaming이 true로 전환된다', () => {
@@ -225,6 +227,7 @@ describe('useChatStream', () => {
       });
 
       expect(onSystemMessage).toHaveBeenCalledWith({
+        eventType: 'system',
         sessionId: 'session-123',
         content: { type: 'status', message: 'Processing' },
       });
@@ -527,14 +530,16 @@ describe('useChatStream', () => {
 
       const loadedMessages: LoadedMessage[] = [
         {
-          type: 'user',
+          uuid: 'loaded-msg-1',
+          type: LoadedMessageType.User,
           timestamp: '2024-01-01T00:00:00Z',
-          message: { role: 'user', content: 'Hello' },
+          message: { role: MessageRole.User, content: 'Hello' },
         },
         {
-          type: 'assistant',
+          uuid: 'loaded-msg-2',
+          type: LoadedMessageType.Assistant,
           timestamp: '2024-01-01T00:00:01Z',
-          message: { role: 'assistant', content: 'Hi there' },
+          message: { role: MessageRole.Assistant, content: 'Hi there' },
         },
       ];
 
@@ -558,9 +563,10 @@ describe('useChatStream', () => {
 
       const loadedMessages: LoadedMessage[] = [
         {
-          type: 'user',
+          uuid: 'new-msg-1',
+          type: LoadedMessageType.User,
           timestamp: '2024-01-01T00:00:00Z',
-          message: { role: 'user', content: 'New message' },
+          message: { role: MessageRole.User, content: 'New message' },
         },
       ];
 
@@ -798,7 +804,7 @@ describe('useChatStream', () => {
 
       // After RAF flush, all deltas should be accumulated
       const assistantMsg = result.current.messages[0];
-      expect(assistantMsg.message?.content).toBe('ABC');
+      expect(assistantMsg.message?.content).toEqual([{ type: 'text', text: 'ABC' }]);
     });
   });
 });

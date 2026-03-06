@@ -38,20 +38,44 @@ export class ToolsApi {
   /**
    * Approve a tool use request
    */
-  async approve(toolUseId: string): Promise<void> {
+  async approve(toolUseId: string, controlRequestId?: string): Promise<void> {
     await this.bridge.request('TOOL_RESPONSE', {
       toolUseId,
       approved: true,
+      ...(controlRequestId && { controlRequestId }),
     });
   }
 
   /**
    * Deny a tool use request
    */
-  async deny(toolUseId: string): Promise<void> {
+  async deny(toolUseId: string, controlRequestId?: string): Promise<void> {
     await this.bridge.request('TOOL_RESPONSE', {
       toolUseId,
       approved: false,
+      ...(controlRequestId && { controlRequestId }),
+    });
+  }
+
+  /**
+   * Respond to a tool use request with custom result content
+   */
+  async respond(
+    toolUseId: string,
+    result: string,
+    options?: {
+      controlRequestId?: string;
+      updatedInput?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    await this.bridge.request('TOOL_RESPONSE', {
+      toolUseId,
+      approved: true,
+      result,
+      ...(options?.controlRequestId && {
+        controlRequestId: options.controlRequestId,
+        updatedInput: options.updatedInput,
+      }),
     });
   }
 
@@ -142,11 +166,11 @@ export class ToolsApi {
     switch (toolName) {
       case 'Write':
       case 'Edit':
-        return 'FILE_WRITE';
+        return PermissionType.FileWrite;
       case 'Delete':
-        return 'FILE_DELETE';
+        return PermissionType.FileDelete;
       case 'Bash':
-        return 'BASH_EXECUTE';
+        return PermissionType.BashExecute;
       default:
         return null;
     }
@@ -159,12 +183,12 @@ export class ToolsApi {
     switch (toolName) {
       case 'Bash':
       case 'Delete':
-        return 'HIGH';
+        return RiskLevel.High;
       case 'Write':
       case 'Edit':
-        return 'MEDIUM';
+        return RiskLevel.Medium;
       default:
-        return 'LOW';
+        return RiskLevel.Low;
     }
   }
 

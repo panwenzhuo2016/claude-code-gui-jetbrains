@@ -1,0 +1,45 @@
+import type { ConnectionManager } from '../../ws/connection-manager';
+import type { Bridge } from '../../bridge/bridge-interface';
+import type { IPCMessage } from '../types';
+import { loadSessionMessages } from '../features/loadSessionMessages';
+import { markSessionAsSpawned } from '../claude-process';
+
+export async function reclaimSessionHandler(
+  connectionId: string,
+  message: IPCMessage,
+  connections: ConnectionManager,
+  _bridge: Bridge,
+): Promise<void> {
+  const sessionId = message.payload?.sessionId as string;
+  const workingDir = (message.payload?.workingDir as string) || process.cwd();
+
+  if (!sessionId) {
+    connections.sendTo(connectionId, 'ACK', { requestId: message.requestId });
+    return;
+  }
+
+  console.error('[node-backend]', `Reclaiming session: ${sessionId}`);
+
+  // 1. 내부 프로세스 종료
+  const session = connections.getSession(sessionId);
+  if (session?.process) {
+    console.error('[node-backend]', `Killing internal process for session ${sessionId}`);
+    session.process.kill('SIGTERM');
+    connections.setProcess(sessionId, null);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  // 2. 다음 spawn 시 --resume 사용하도록 마킹
+  markSessionAsSpawned(sessionId);
+
+  // 3. 세션 메시지 로딩 & 전송
+  connections.subscribe(connectionId, sessionId);
+  const messages = await loadSessionMessages(workingDir, sessionId);
+  connections.sendTo(connectionId, 'SESSION_LOADED', {
+    sessionId,
+    messages,
+  });
+
+  console.error('[node-backend]', `Session ${sessionId} reclaimed successfully`);
+  connections.sendTo(connectionId, 'ACK', { requestId: message.requestId });
+}

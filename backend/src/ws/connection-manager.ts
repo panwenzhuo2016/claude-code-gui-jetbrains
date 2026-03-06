@@ -111,13 +111,18 @@ export class ConnectionManager {
   // ─── Subscription (Pub/Sub) ─────────────────────────────────────────────────
 
   subscribe(connectionId: string, sessionId: string): void {
-    // Unsubscribe from any existing session first
+    const client = this.clientMap.get(connectionId);
+    // Already subscribed to the same session — no-op
+    if (client?.subscribedSessionId === sessionId) {
+      return;
+    }
+
+    // Unsubscribe from any DIFFERENT session first
     this.unsubscribe(connectionId);
 
     const session = this.getOrCreateSession(sessionId);
     session.subscribers.add(connectionId);
 
-    const client = this.clientMap.get(connectionId);
     if (client) {
       client.subscribedSessionId = sessionId;
     }
@@ -198,6 +203,31 @@ export class ConnectionManager {
   }
 
   // ─── Internal ───────────────────────────────────────────────────────────────
+
+  shutdownAll(): void {
+    let killedSessions = 0;
+    let closedConnections = 0;
+
+    for (const session of this.sessionRegistry.values()) {
+      if (session.process) {
+        session.process.kill('SIGTERM');
+        killedSessions++;
+      }
+    }
+
+    for (const ws of this.connectionMap.values()) {
+      ws.close();
+      closedConnections++;
+    }
+
+    this.sessionRegistry.clear();
+    this.connectionMap.clear();
+
+    console.error(
+      '[node-backend]',
+      `Shutdown: killed ${killedSessions} session(s), closed ${closedConnections} connection(s)`,
+    );
+  }
 
   private cleanupSession(sessionId: string): void {
     const session = this.sessionRegistry.get(sessionId);

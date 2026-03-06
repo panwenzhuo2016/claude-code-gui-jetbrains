@@ -83,6 +83,7 @@ export interface PanelSection {
   scrollable?: boolean;
   maxHeight?: number;
   showDividerAbove: boolean;
+  onHeaderClick?: () => void;
 }
 
 // State Types

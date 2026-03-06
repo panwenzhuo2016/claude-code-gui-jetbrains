@@ -46,6 +46,28 @@ interface IPCMessage {
 }
 
 /**
+ * Typed payload interfaces for specific IPC message types.
+ * IPCMessage.payload is Record<string, unknown> for flexibility,
+ * but these interfaces document the expected shape for each message type.
+ */
+
+/** Payload for SEND_MESSAGE (WebView -> Backend) */
+interface SendMessagePayload {
+  sessionId: string;
+  isNewSession: boolean;
+  content: string;
+  /** Image attachments encoded as base64 inline data */
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    base64: string;
+  }>;
+  context: Array<Record<string, unknown>>;
+  workingDir: string;
+  inputMode: string;
+}
+
+/**
  * Message type constants for type safety
  */
 declare const MessageTypes: {

@@ -37,6 +37,20 @@ export interface IdeAdapter {
   openFile(filePath: string): Promise<void>;
 
   /**
+   * Open Claude in an external terminal
+   * - In JetBrains: Opens Claude in the IDE's built-in terminal
+   * - In Browser: Opens the configured terminal app and runs claude
+   */
+  openTerminal(workingDir: string): Promise<void>;
+
+  /**
+   * Open a URL in an external browser
+   * - In JetBrains: Delegates to Node.js backend which calls the bridge
+   * - In Browser: Opens the URL in a new tab
+   */
+  openUrl(url: string): Promise<void>;
+
+  /**
    * Check if the adapter is ready to use
    */
   isReady(): boolean;

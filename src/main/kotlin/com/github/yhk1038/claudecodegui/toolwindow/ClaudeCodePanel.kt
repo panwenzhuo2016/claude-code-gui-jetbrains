@@ -3,11 +3,12 @@ package com.github.yhk1038.claudecodegui.toolwindow
 import com.github.yhk1038.claudecodegui.actions.OpenClaudeCodeAction
 import com.github.yhk1038.claudecodegui.bridge.NodeProcessManager
 import com.github.yhk1038.claudecodegui.services.DiffService
+import com.github.yhk1038.claudecodegui.services.NodeBackendService
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -55,7 +56,7 @@ class ClaudeCodePanel(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val nodeProcessManager = NodeProcessManager(project, scope)
+    private val backendService = NodeBackendService.getInstance(project)
     private val diffService: DiffService = DiffService.getInstance(project)
 
     // Loading label
@@ -75,10 +76,10 @@ class ClaudeCodePanel(
         setupBrowserHandlers()
 
         // Phase 3: Start Node.js backend and load URL once ready
-        nodeProcessManager.start(createRpcHandler())
+        backendService.ensureStarted(createRpcHandler())
         scope.launch {
             try {
-                val port = nodeProcessManager.port.await()
+                val port = backendService.awaitPort()
                 loadWebView(port)
             } catch (e: Exception) {
                 logger.error("Failed to start Node.js backend", e)
@@ -119,7 +120,6 @@ class ClaudeCodePanel(
             override fun onLoadEnd(browser: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
                 if (frame.isMain) {
                     injectCursorTracking(frame)
-                    injectInitialHash(frame)
                     logger.info("WebView loaded successfully")
                     javax.swing.SwingUtilities.invokeLater {
                         this@ClaudeCodePanel.browser.component.requestFocusInWindow()
@@ -184,16 +184,6 @@ class ClaudeCodePanel(
     }
 
     /**
-     * Set the initial hash if specified (e.g., for settings page navigation).
-     */
-    private fun injectInitialHash(frame: CefFrame) {
-        if (initialHash != null) {
-            val escapedHash = initialHash.replace("\\", "\\\\").replace("'", "\\'")
-            frame.executeJavaScript("window.location.hash = '$escapedHash';", frame.url, 0)
-        }
-    }
-
-    /**
      * Opens the JCEF DevTools for debugging.
      */
     private fun openDevTools() {
@@ -212,11 +202,16 @@ class ClaudeCodePanel(
      * Called once the backend has printed its PORT.
      */
     private fun loadWebView(port: Int) {
+        System.err.println("[ClaudeCodePanel] loadWebView called for project: ${project.name}")
+        System.err.println("[ClaudeCodePanel] project.basePath: ${project.basePath}")
+
         val workingDirParam = project.basePath?.let {
             "?workingDir=${java.net.URLEncoder.encode(it, "UTF-8")}"
         } ?: ""
 
-        val url = "http://localhost:$port$workingDirParam"
+        val envParam = if (workingDirParam.isNotEmpty()) "&env=jcef" else "?env=jcef"
+        val url = "http://localhost:$port$workingDirParam$envParam${initialHash ?: ""}"
+        System.err.println("[ClaudeCodePanel] Loading URL: $url")
         logger.info("Loading WebView from Node.js backend: $url")
 
         javax.swing.SwingUtilities.invokeLater {
@@ -271,15 +266,10 @@ class ClaudeCodePanel(
         revalidate()
         repaint()
 
-        // Dispose old manager and create a new one
-        nodeProcessManager.dispose()
-
-        // We need a new NodeProcessManager since the old deferred is already completed
-        val newManager = NodeProcessManager(project, scope)
-        newManager.start(createRpcHandler())
+        backendService.restart(createRpcHandler())
         scope.launch {
             try {
-                val port = newManager.port.await()
+                val port = backendService.awaitPort()
                 loadWebView(port)
             } catch (e: Exception) {
                 logger.error("Retry: Failed to start Node.js backend", e)
@@ -349,12 +339,28 @@ class ClaudeCodePanel(
 
             override suspend fun openSettings() {
                 ApplicationManager.getApplication().invokeLater {
-                    ShowSettingsUtil.getInstance().showSettingsDialog(
-                        project,
-                        "com.github.yhk1038.claudecodegui.settings"
-                    )
-                    logger.info("Opened Claude Code settings")
+                    OpenClaudeCodeAction.openSession(project, UUID.randomUUID().toString(), "#/settings/general")
+                    logger.info("Opened Claude Code settings in editor tab")
                 }
+            }
+
+            override suspend fun openTerminal(workingDir: String) {
+                ApplicationManager.getApplication().invokeLater {
+                    try {
+                        val terminalManager = org.jetbrains.plugins.terminal.TerminalToolWindowManager.getInstance(project)
+                        val widget = terminalManager.createShellWidget(workingDir, "Claude Code", true, false)
+                        val shellWidget = org.jetbrains.plugins.terminal.ShellTerminalWidget.toShellJediTermWidgetOrThrow(widget)
+                        shellWidget.executeCommand("claude")
+                        logger.info("Opened terminal with claude in: $workingDir")
+                    } catch (e: Exception) {
+                        logger.error("Failed to open terminal: $workingDir", e)
+                    }
+                }
+            }
+
+            override suspend fun openUrl(url: String) {
+                BrowserUtil.browse(url)
+                logger.info("Opened URL in browser: $url")
             }
         }
     }
@@ -363,7 +369,7 @@ class ClaudeCodePanel(
 
     override fun dispose() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
-        nodeProcessManager.dispose()
+        backendService.releasePanel()
         Disposer.dispose(cursorQuery)
         Disposer.dispose(browser)
         logger.info("ClaudeCodePanel disposed")

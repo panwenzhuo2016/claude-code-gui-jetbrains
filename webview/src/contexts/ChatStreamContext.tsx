@@ -4,7 +4,7 @@ import { useDiffs } from '../hooks/useDiffs';
 import { useTools } from '../hooks/useTools';
 import { useBridgeContext } from './BridgeContext';
 import { useSessionContext } from './SessionContext';
-import { LoadedMessageDto, Context, Attachment, AttachmentPayload, SessionState } from '../types';
+import { LoadedMessageDto, Context, Attachment, SessionState } from '../types';
 import { MessageRole, LoadedMessageType } from '../dto/common';
 import { InputMode } from '../types/chatInput';
 
@@ -171,11 +171,7 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
         sessionId,
         isNewSession,
         content,
-        attachments: attachments?.map((a): AttachmentPayload => ({
-          fileName: a.fileName,
-          mimeType: a.mimeType,
-          base64: a.base64,
-        })),
+        attachments: attachments?.map(a => ({ ...a.toPayload() })),
         context: context || [],
         workingDir: session.workingDirectory,
         inputMode,

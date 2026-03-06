@@ -135,4 +135,13 @@ export class JetBrainsBridge implements Bridge {
   async openUrl(url: string): Promise<void> {
     await this.request('OPEN_URL', { url });
   }
+
+  async pickFiles(options: {
+    mode: 'files' | 'folders' | 'both';
+    multiple?: boolean;
+  }): Promise<{ paths: string[] }> {
+    const result = await this.request('PICK_FILES', options as unknown as Record<string, unknown>);
+    const paths = result['paths'];
+    return { paths: Array.isArray(paths) ? (paths as string[]) : [] };
+  }
 }

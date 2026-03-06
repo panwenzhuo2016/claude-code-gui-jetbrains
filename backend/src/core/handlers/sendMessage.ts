@@ -15,11 +15,11 @@ export async function sendMessageHandler(
   const msgSessionId = message.payload?.sessionId as string | undefined;
   const inputMode = message.payload?.inputMode as string;
   const resolvedSessionId = msgSessionId || generateSessionId();
-  const attachments = message.payload?.attachments as Array<{
-    fileName: string;
-    mimeType: string;
-    base64: string;
-  }> | undefined;
+  const attachments = message.payload?.attachments as Array<
+    | { type: 'image'; fileName: string; mimeType: string; base64: string }
+    | { type: 'file'; fileName: string; absolutePath: string }
+    | { type: 'folder'; folderName: string; absolutePath: string }
+  > | undefined;
 
   try {
     if (content || (attachments && attachments.length > 0)) {

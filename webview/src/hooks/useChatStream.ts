@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Context, getTextContent, LoadedMessageDto, Attachment } from '../types';
+import { Context, getTextContent, LoadedMessageDto, Attachment, isImageAttachment, FileAttachment, FolderAttachment, ContextType } from '../types';
 import type { TextBlockDto, ToolUseBlockDto, ThinkingBlockDto, ImageBlockDto, ImageSourceDto, AnyContentBlockDto } from '../dto/message/ContentBlockDto';
 import { ContentBlockType } from '../dto/message/ContentBlockDto';
 import { toInstance, LoadedMessageType, MessageRole } from '../dto/common';
@@ -310,16 +310,27 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     setError(null);
     setIsStopped(false);
 
-    // Build content: string if no attachments, ContentBlock[] if attachments
+    // 파일/폴더 첨부를 context로 변환
+    const fileContexts: Context[] = (attachments ?? [])
+      .filter(att => !isImageAttachment(att))
+      .map(att => ({
+        type: ContextType.File,
+        path: (att as FileAttachment | FolderAttachment).absolutePath,
+        content: att.displayLabel,
+      }));
+    const allContexts = [...(context ?? []), ...fileContexts];
+
+    // 이미지만 ImageBlockDto로 변환
     // isContentBlockArray() type guard는 duck-typing이므로 plain object도 통과한다.
     // ImageAttachments 컴포넌트도 속성 접근만 하므로 plain object로 충분하다.
     let messageContent: string | AnyContentBlockDto[];
-    if (attachments && attachments.length > 0) {
+    const imageAttachments = (attachments ?? []).filter(isImageAttachment);
+    if (imageAttachments.length > 0) {
       const blocks: AnyContentBlockDto[] = [];
       if (content.trim()) {
         blocks.push({ type: ContentBlockType.Text, text: content.trim() } as TextBlockDto);
       }
-      for (const att of attachments) {
+      for (const att of imageAttachments) {
         blocks.push({
           type: ContentBlockType.Image,
           source: {
@@ -340,7 +351,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
       uuid: generateMessageId(),
       timestamp: new Date().toISOString(),
       message: { role: MessageRole.User, content: messageContent } as any,
-      context,
+      context: allContexts,
     };
     appendMessage(userMessage);
 

@@ -200,7 +200,11 @@ export function sendMessageToProcess(
   connections: ConnectionManager,
   sessionId: string,
   content: string,
-  attachments?: Array<{ fileName: string; mimeType: string; base64: string }>,
+  attachments?: Array<
+    | { type: 'image'; fileName: string; mimeType: string; base64: string }
+    | { type: 'file'; fileName: string; absolutePath: string }
+    | { type: 'folder'; folderName: string; absolutePath: string }
+  >,
 ): boolean {
   const session = connections.getSession(sessionId);
   if (!session?.process?.stdin?.writable) {
@@ -208,26 +212,34 @@ export function sendMessageToProcess(
     return false;
   }
 
-  // Build message content: string if no attachments, ContentBlock[] if attachments
+  // 파일/폴더 경로를 프롬프트 앞에 삽입
+  const fileRefs = attachments?.filter(a => a.type !== 'image') ?? [];
+  let finalContent = content;
+  if (fileRefs.length > 0) {
+    const pathLines = fileRefs.map(r => (r as { absolutePath: string }).absolutePath).join('\n');
+    finalContent = `${pathLines}\n\n${content}`;
+  }
+
+  // 이미지만 image block으로 변환
+  const imageAtts = attachments?.filter(a => a.type === 'image') ?? [];
+
   let messageContent: string | Array<Record<string, unknown>>;
-  if (attachments && attachments.length > 0) {
+  if (imageAtts.length > 0) {
     const blocks: Array<Record<string, unknown>> = [];
-    if (content) {
-      blocks.push({ type: 'text', text: content });
+    if (finalContent) {
+      blocks.push({ type: 'text', text: finalContent });
     }
-    for (const att of attachments) {
-      blocks.push({
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: att.mimeType,
-          data: att.base64,
-        },
-      });
+    for (const att of imageAtts) {
+      if (att.type === 'image') {
+        blocks.push({
+          type: 'image',
+          source: { type: 'base64', media_type: att.mimeType, data: att.base64 },
+        });
+      }
     }
     messageContent = blocks;
   } else {
-    messageContent = content;
+    messageContent = finalContent;
   }
 
   const stdinMessage =

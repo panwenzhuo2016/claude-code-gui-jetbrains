@@ -114,26 +114,6 @@ export interface Context {
   endLine?: number;
 }
 
-export interface Attachment {
-  id: string;            // crypto.randomUUID()
-  fileName: string;
-  mimeType: string;      // 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
-  base64: string;        // 순수 base64 (data URL prefix 없이)
-  size: number;          // 원본 바이트 수
-}
-
-/** Bridge 전송용 attachment (UI 전용 필드 제외) */
-export interface AttachmentPayload {
-  fileName: string;
-  mimeType: string;
-  base64: string;
-}
-
-export const ATTACHMENT_LIMITS = {
-  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-  ALLOWED_MIME_TYPES: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const,
-} as const;
-
 export interface ToolUse {
   id: string;
   name: string;
@@ -248,3 +228,4 @@ export function getToolUses(message: LoadedMessageDto): ToolUse[] {
 
 // Settings types
 export * from './settings';
+export * from './attachment';

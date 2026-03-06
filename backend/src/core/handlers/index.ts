@@ -29,6 +29,7 @@ import { loginHandler } from './login';
 import { openUrlHandler } from './openUrl';
 import { getAvailableTerminalsHandler } from './getAvailableTerminals';
 import { getDetectedCliPathHandler } from './getDetectedCliPath';
+import { pickFilesHandler } from './pickFiles';
 
 export async function handleMessage(
   connectionId: string,
@@ -122,6 +123,9 @@ export async function handleMessage(
       break;
     case 'GET_DETECTED_CLI_PATH':
       await getDetectedCliPathHandler(connectionId, message, connections, bridge);
+      break;
+    case 'PICK_FILES':
+      await pickFilesHandler(connectionId, message, connections, bridge);
       break;
     default:
       console.error('[node-backend]', `Unknown message type: ${message.type}`);

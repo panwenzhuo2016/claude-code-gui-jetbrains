@@ -68,6 +68,67 @@ export class BrowserBridge implements Bridge {
     });
   }
 
+  async pickFiles(options: {
+    mode: 'files' | 'folders' | 'both';
+    multiple?: boolean;
+  }): Promise<{ paths: string[] }> {
+    const { mode, multiple = true } = options;
+
+    if (process.platform === 'darwin') {
+      return this.pickFilesMacOS(mode, multiple);
+    }
+    // Windows, Linux: 빈 배열 (향후 구현)
+    return { paths: [] };
+  }
+
+  private pickFilesMacOS(mode: string, multiple: boolean): Promise<{ paths: string[] }> {
+    return new Promise((resolve) => {
+      let script: string;
+      const multipleClause = multiple ? ' with multiple selections allowed' : '';
+
+      if (mode === 'folders') {
+        if (multiple) {
+          script = `
+            set chosen to choose folder with prompt "Select folders"${multipleClause}
+            set posixPaths to ""
+            repeat with f in chosen
+              set posixPaths to posixPaths & POSIX path of f & "\\n"
+            end repeat
+            return posixPaths
+          `;
+        } else {
+          script = `return POSIX path of (choose folder with prompt "Select a folder")`;
+        }
+      } else {
+        // mode === 'files' or 'both'
+        if (multiple) {
+          script = `
+            set chosen to choose file with prompt "Select files"${multipleClause}
+            set posixPaths to ""
+            repeat with f in chosen
+              set posixPaths to posixPaths & POSIX path of f & "\\n"
+            end repeat
+            return posixPaths
+          `;
+        } else {
+          script = `return POSIX path of (choose file with prompt "Select a file")`;
+        }
+      }
+
+      exec(`osascript -e '${script.replace(/'/g, "'\\''")}'`, (err, stdout) => {
+        if (err) {
+          // 사용자가 취소하면 에러가 발생 — 빈 배열 반환
+          console.error('[node-backend]', 'pickFiles cancelled or failed:', err.message);
+          resolve({ paths: [] });
+          return;
+        }
+
+        const paths = stdout.trim().split('\n').filter((p) => p.length > 0);
+        resolve({ paths });
+      });
+    });
+  }
+
   async openTerminal(workingDir: string): Promise<void> {
     const settings = await readSettingsFile();
     const terminalApp = settings['terminalApp'] as string | null;

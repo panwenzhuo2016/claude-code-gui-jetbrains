@@ -18,6 +18,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    assetsInlineLimit: 10240,
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name].js',

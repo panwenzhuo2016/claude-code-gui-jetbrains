@@ -555,28 +555,57 @@ class NodeProcessManager(
             if (webviewUrl != null && webviewUrl.protocol == "jar") {
                 extractFromJar(tempDir)
             } else {
-                // IDE runtime — try to extract known resources
-                val resources = listOf(
-                    "index.html",
-                    "favicon.svg"
-                )
-
-                for (resource in resources) {
-                    val inputStream = javaClass.getResourceAsStream("/webview/$resource")
-                    if (inputStream != null) {
-                        val targetFile = File(tempDir, resource)
-                        targetFile.parentFile?.mkdirs()
-                        inputStream.use { input ->
-                            targetFile.outputStream().use { output ->
-                                input.copyTo(output)
+                // IDE runtime — try dynamic scanning of /webview/ directory first
+                var dynamicScanSucceeded = false
+                if (webviewUrl != null && webviewUrl.protocol == "file") {
+                    try {
+                        val webviewDir = File(webviewUrl.toURI())
+                        if (webviewDir.isDirectory) {
+                            webviewDir.walkTopDown().filter { it.isFile }.forEach { file ->
+                                val relativePath = file.relativeTo(webviewDir).path
+                                val targetFile = File(tempDir, relativePath)
+                                targetFile.parentFile?.mkdirs()
+                                file.inputStream().use { input ->
+                                    targetFile.outputStream().use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                                logger.debug("Extracted (scanned): $relativePath")
                             }
+                            logger.info("Dynamically scanned and extracted all webview resources")
+                            dynamicScanSucceeded = true
                         }
-                        logger.debug("Extracted: $resource")
+                    } catch (e: Exception) {
+                        logger.debug("Dynamic webview scanning failed, falling back to known resources: ${e.message}")
                     }
                 }
 
-                // Also try to extract assets/ directory entries
-                extractAssetsFromClasspath(tempDir)
+                if (!dynamicScanSucceeded) {
+                    // Fallback: extract known resources individually
+                    val resources = listOf(
+                        "index.html",
+                        "favicon.svg",
+                        "welcome-art-dark.svg",
+                        "welcome-art-light.svg"
+                    )
+
+                    for (resource in resources) {
+                        val inputStream = javaClass.getResourceAsStream("/webview/$resource")
+                        if (inputStream != null) {
+                            val targetFile = File(tempDir, resource)
+                            targetFile.parentFile?.mkdirs()
+                            inputStream.use { input ->
+                                targetFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            logger.debug("Extracted: $resource")
+                        }
+                    }
+
+                    // Also try to extract assets/ directory entries
+                    extractAssetsFromClasspath(tempDir)
+                }
             }
 
             logger.info("Extracted WebView resources to: ${tempDir.absolutePath}")
@@ -651,7 +680,8 @@ class NodeProcessManager(
             "assets/index.js",
             "assets/index.css",
             "assets/codicon.ttf",
-            "assets/code-block-37QAKDTI.js"
+            "assets/clawd.svg",
+            "assets/claude-code-logo.svg"
         )
 
         for (asset in knownAssets) {

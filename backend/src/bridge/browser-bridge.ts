@@ -76,9 +76,11 @@ export class BrowserBridge implements Bridge {
 
     if (process.platform === 'darwin') {
       return this.pickFilesMacOS(mode, multiple);
+    } else if (process.platform === 'win32') {
+      return this.pickFilesWindows(mode, multiple);
+    } else {
+      return this.pickFilesLinux(mode, multiple);
     }
-    // Windows, Linux: 빈 배열 (향후 구현)
-    return { paths: [] };
   }
 
   private pickFilesMacOS(mode: string, multiple: boolean): Promise<{ paths: string[] }> {
@@ -123,6 +125,73 @@ export class BrowserBridge implements Bridge {
           return;
         }
 
+        const paths = stdout.trim().split('\n').filter((p) => p.length > 0);
+        resolve({ paths });
+      });
+    });
+  }
+
+  private pickFilesWindows(mode: string, multiple: boolean): Promise<{ paths: string[] }> {
+    return new Promise((resolve) => {
+      let script: string;
+
+      if (mode === 'folders') {
+        // FolderBrowserDialog — 단일 선택만 지원
+        script = `
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = "Select a folder"
+if ($dialog.ShowDialog() -eq 'OK') {
+  Write-Output $dialog.SelectedPath
+}`;
+      } else {
+        // OpenFileDialog
+        script = `
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = "Select files"
+$dialog.Filter = "All files (*.*)|*.*"
+${multiple ? '$dialog.Multiselect = $true' : ''}
+if ($dialog.ShowDialog() -eq 'OK') {
+  $dialog.FileNames | ForEach-Object { Write-Output $_ }
+}`;
+      }
+
+      exec(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`, (err, stdout) => {
+        if (err) {
+          console.error('[node-backend]', 'pickFiles cancelled or failed:', err.message);
+          resolve({ paths: [] });
+          return;
+        }
+        const paths = stdout.trim().split('\r\n').filter((p) => p.length > 0);
+        resolve({ paths });
+      });
+    });
+  }
+
+  private pickFilesLinux(mode: string, multiple: boolean): Promise<{ paths: string[] }> {
+    return new Promise((resolve) => {
+      const args: string[] = ['--file-selection'];
+
+      if (mode === 'folders') {
+        args.push('--directory');
+        args.push('--title=Select folders');
+      } else {
+        args.push('--title=Select files');
+      }
+
+      if (multiple) {
+        args.push('--multiple');
+        args.push('--separator=\\n');
+      }
+
+      exec(`zenity ${args.join(' ')}`, (err, stdout) => {
+        if (err) {
+          // 사용자 취소 시 exit code 1
+          console.error('[node-backend]', 'pickFiles cancelled or failed:', err.message);
+          resolve({ paths: [] });
+          return;
+        }
         const paths = stdout.trim().split('\n').filter((p) => p.length > 0);
         resolve({ paths });
       });

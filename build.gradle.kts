@@ -106,10 +106,14 @@ intellijPlatform {
             untilBuild = "253.*"
         }
         changeNotes = """
-            <h3>0.8.1 - Bug Fixes and Security Improvements</h3>
+            <h3>0.8.2 - License Change and Backend Improvements</h3>
             <ul>
-                <li>Fixed cliPath setting being ignored during CLI spawn</li>
-                <li>Hardened HTTP listener security in WebSocket server</li>
+                <li>Changed license from MIT to AGPL-3.0</li>
+                <li>Per-panel RPC handler registration for multi-panel support</li>
+                <li>Auto-shutdown backend when last panel closes</li>
+                <li>Auto-kill zombie processes on default port at startup</li>
+                <li>Simplified WebSocket server port binding</li>
+                <li>Removed unused Kotlin bridge files</li>
             </ul>
         """.trimIndent()
     }

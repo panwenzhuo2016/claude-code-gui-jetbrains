@@ -3,6 +3,7 @@ import type { ConnectionManager } from '../../ws/connection-manager';
 import type { Bridge } from '../../bridge/bridge-interface';
 import type { IPCMessage } from '../types';
 import { getClaudeCredentials } from '../features/getClaudeCredentials';
+import { getAugmentedPath } from '../claude-process';
 
 interface ClaudeAuthStatus {
   loggedIn?: boolean;
@@ -15,7 +16,7 @@ interface ClaudeAuthStatus {
 
 function runClaudeAuthStatus(): Promise<ClaudeAuthStatus | null> {
   return new Promise((resolve) => {
-    exec('claude auth status', { timeout: 8000 }, (err, stdout) => {
+    exec('claude auth status', { timeout: 8000, env: { ...process.env, PATH: getAugmentedPath() } }, (err, stdout) => {
       if (err || !stdout.trim()) {
         resolve(null);
         return;

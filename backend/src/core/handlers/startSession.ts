@@ -13,9 +13,14 @@ export async function startSessionHandler(
   const sessionId = message.payload?.sessionId as string | undefined;
   const inputMode = (message.payload?.inputMode as string) || 'ask_before_edit';
 
-  if (sessionId) {
-    connections.subscribe(connectionId, sessionId);
-    await ensureClaudeProcess(connections, connectionId, workingDir, sessionId, inputMode);
+  try {
+    if (sessionId) {
+      connections.subscribe(connectionId, sessionId);
+      await ensureClaudeProcess(connections, connectionId, workingDir, sessionId, inputMode);
+    }
+  } catch (err) {
+    // ensureClaudeProcess already broadcasts SERVICE_ERROR to the session.
+    console.error('[node-backend]', 'startSession failed:', err);
   }
 
   connections.sendTo(connectionId, 'ACK', { requestId: message.requestId });

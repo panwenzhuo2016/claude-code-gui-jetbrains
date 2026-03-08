@@ -1,6 +1,53 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import type { ConnectionManager } from '../ws/connection-manager';
 import { readSettingsFile } from './features/settings';
+
+/**
+ * Build an augmented PATH that includes well-known bin directories where
+ * `claude` CLI is likely installed.  IDE-spawned Node.js processes often
+ * inherit a minimal PATH that doesn't include nvm / volta / homebrew paths.
+ */
+function buildAugmentedPath(): string {
+  const basePath = process.env.PATH ?? '';
+  const home = process.env.HOME ?? '';
+  if (!home) return basePath;
+
+  const extraDirs = [
+    join(home, '.local', 'bin'),          // pipx / manual installs
+    join(home, '.npm-global', 'bin'),     // npm global (custom prefix)
+    join(home, '.volta', 'bin'),          // volta
+    join(home, '.fnm', 'aliases', 'default', 'bin'), // fnm
+    '/usr/local/bin',                      // macOS default / homebrew (Intel)
+    '/opt/homebrew/bin',                   // homebrew (Apple Silicon)
+  ];
+
+  // Add nvm current version bin if NVM_DIR is set
+  const nvmDir = process.env.NVM_DIR ?? join(home, '.nvm');
+  try {
+    const nvmDefaultBin = execSync(
+      `bash -c 'source "${nvmDir}/nvm.sh" --no-use 2>/dev/null && nvm which current 2>/dev/null'`,
+      { encoding: 'utf-8', timeout: 3000 },
+    ).trim();
+    if (nvmDefaultBin) {
+      const nvmBinDir = nvmDefaultBin.substring(0, nvmDefaultBin.lastIndexOf('/'));
+      if (nvmBinDir) extraDirs.push(nvmBinDir);
+    }
+  } catch {
+    // nvm not available — skip
+  }
+
+  const existingDirs = new Set(basePath.split(':'));
+  const additions = extraDirs.filter(d => !existingDirs.has(d) && existsSync(d));
+  return additions.length > 0 ? `${basePath}:${additions.join(':')}` : basePath;
+}
+
+const augmentedPath = buildAugmentedPath();
+
+export function getAugmentedPath(): string {
+  return augmentedPath;
+}
 
 // InputMode -> CLI --permission-mode flag mapping
 const INPUT_MODE_TO_CLI_FLAG: Record<string, string> = {
@@ -85,7 +132,7 @@ export async function ensureClaudeProcess(
       ...process.env,
       TERM: 'dumb',
       CI: 'true',
-      PATH: process.env.PATH,
+      PATH: augmentedPath,
       CLAUDECODE: undefined,
     },
   });

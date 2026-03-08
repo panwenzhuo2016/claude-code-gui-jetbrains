@@ -3,6 +3,7 @@ import type { ConnectionManager } from '../../ws/connection-manager';
 import type { Bridge } from '../../bridge/bridge-interface';
 import type { IPCMessage } from '../types';
 import { readSettingsFile } from '../features/settings';
+import { getAugmentedPath } from '../claude-process';
 
 export async function loginHandler(
   connectionId: string,
@@ -16,7 +17,7 @@ export async function loginHandler(
   return new Promise((resolve) => {
     const child = spawn(claudeCmd, ['auth', 'login'], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env },
+      env: { ...process.env, PATH: getAugmentedPath() },
     });
 
     child.on('close', (code) => {

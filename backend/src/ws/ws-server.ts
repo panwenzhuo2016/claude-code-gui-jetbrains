@@ -98,7 +98,9 @@ export function startWebSocketServer(
           console.error('[node-backend]', 'Failed to parse incoming message:', data.toString());
           return;
         }
-        handleMessage(connectionId, parsed, connections, bridge);
+        Promise.resolve(handleMessage(connectionId, parsed, connections, bridge)).catch((err) => {
+          console.error('[node-backend]', `Unhandled error in handleMessage (${parsed.type}):`, err);
+        });
       });
 
       ws.on('close', () => {

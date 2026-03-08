@@ -36,6 +36,10 @@ export async function sendMessageHandler(
         sessionId: resolvedSessionId,
       }, connectionId);
     }
+  } catch (err) {
+    // ensureClaudeProcess already broadcasts SERVICE_ERROR to the session.
+    // Log here to prevent unhandled rejection; do NOT re-throw.
+    console.error('[node-backend]', 'sendMessage failed:', err);
   } finally {
     connections.sendTo(connectionId, 'ACK', { requestId: message.requestId });
   }

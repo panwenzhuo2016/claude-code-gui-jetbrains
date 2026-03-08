@@ -106,10 +106,11 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.8.3 - EDT Freeze Fix and Documentation Update</h3>
+            <h3>0.8.4 - Terminal API Compatibility and EADDRINUSE Fix</h3>
             <ul>
-                <li>Fixed ToolWindow EDT freeze by making openFile calls asynchronous via invokeLater</li>
-                <li>Added additional screenshots to README</li>
+                <li>Added IDE 2025.2+ Reworked Terminal API compatibility via reflection</li>
+                <li>Fixed EADDRINUSE error by automatically killing stale processes and retrying</li>
+                <li>Extended IDE support range up to 2026.1 (untilBuild 261.*)</li>
             </ul>
         """.trimIndent()
     }

@@ -106,13 +106,11 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.8.4 - Help Docs, Terminal API Compatibility, and Bug Fixes</h3>
+            <h3>0.8.5 - Fix Backend Crash on CLI Not Found</h3>
             <ul>
-                <li>Added "View help docs" slash command for in-IDE documentation access</li>
-                <li>Added IDE 2025.2+ Reworked Terminal API compatibility via reflection</li>
-                <li>Fixed EADDRINUSE error by automatically killing stale processes and retrying</li>
-                <li>Extended IDE support range up to 2026.1 (untilBuild 261.*)</li>
-                <li>Rewrote README overview with translations in 6 languages</li>
+                <li>Fixed backend crash caused by unhandled promise rejection when Claude CLI is not found (ENOENT)</li>
+                <li>Augmented PATH with well-known directories (~/.local/bin, ~/.volta/bin, /opt/homebrew/bin, etc.) so the CLI is discoverable even when IDE has a limited PATH</li>
+                <li>Improved error handling in session start and message send handlers</li>
             </ul>
         """.trimIndent()
     }

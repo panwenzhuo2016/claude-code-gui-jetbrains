@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import type { ConnectionManager } from '../../ws/connection-manager';
 import type { Bridge } from '../../bridge/bridge-interface';
 import type { IPCMessage } from '../types';
+import { getAugmentedPath } from '../claude-process';
 
 declare const __PLUGIN_VERSION__: string;
 
@@ -11,7 +12,7 @@ function getPluginVersion(): string {
 
 function getCliVersion(): Promise<string | null> {
   return new Promise((resolve) => {
-    exec('claude --version', { timeout: 5000 }, (err, stdout) => {
+    exec('claude --version', { timeout: 5000, env: { ...process.env, PATH: getAugmentedPath() } }, (err, stdout) => {
       if (err) {
         resolve(null);
         return;

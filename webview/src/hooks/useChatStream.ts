@@ -3,6 +3,7 @@ import { Context, getTextContent, LoadedMessageDto, Attachment, isImageAttachmen
 import type { TextBlockDto, ToolUseBlockDto, ThinkingBlockDto, ImageBlockDto, ImageSourceDto, AnyContentBlockDto } from '../dto/message/ContentBlockDto';
 import { ContentBlockType } from '../dto/message/ContentBlockDto';
 import { toInstance, LoadedMessageType, MessageRole } from '../dto/common';
+import { parsePartialJson } from '../utils/parsePartialJson';
 
 /** Re-export for backwards compatibility */
 export type { LoadedMessageDto as LoadedMessage } from '../types';
@@ -217,12 +218,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
           const block = currentBlocks[idx] as ToolUseBlockDto;
           // accumulatedInputJsonRef holds the full JSON string across all RAF frames
           accumulatedInputJsonRef.current += inputJsonDelta;
-          let parsedInput = block.input;
-          try {
-            parsedInput = JSON.parse(accumulatedInputJsonRef.current) as Record<string, unknown>;
-          } catch {
-            // Not yet valid JSON, keep accumulating
-          }
+          const parsedInput = parsePartialJson(accumulatedInputJsonRef.current) ?? block.input;
           currentBlocks[idx] = { ...block, input: parsedInput };
         }
       }

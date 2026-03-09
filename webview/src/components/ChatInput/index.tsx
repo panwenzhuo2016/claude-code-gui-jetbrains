@@ -221,8 +221,8 @@ export function ChatInput() {
     // Slash command interaction
     if (palette.handleSlashKeyDown(e, value)) return;
 
-    // Enter: submit
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Enter: submit (IME 조합 중에는 무시)
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (!disabled && (value.trim() || attachments.length > 0)) {
         inputHistory.pushToHistory(value);

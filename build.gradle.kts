@@ -106,10 +106,16 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.8.6 - Fix Deprecated Terminal API Warning</h3>
+            <h3>0.9.0 - Plugin Update System & Stability Improvements</h3>
             <ul>
-                <li>Replaced deprecated Terminal API direct calls with reflection-based approach to resolve Plugin Verifier warnings</li>
-                <li>Supports full JetBrains IDE version range (242–261) for terminal integration</li>
+                <li>Added Releases settings page with plugin update management</li>
+                <li>Added update available banner with dynamic restart detection</li>
+                <li>Fixed battery UI sync across multiple hook instances</li>
+                <li>Fixed JCEF IME Korean input NullPointerException crash</li>
+                <li>Fixed session switching race condition with callback-based reset</li>
+                <li>Fixed dynamic chunk loading failure in JCEF environment</li>
+                <li>Fixed tool renderer TypeError crash on uninitialized input</li>
+                <li>Unified CLI event delivery (STREAM_EVENT/CONTROL_REQUEST → CLI_EVENT)</li>
             </ul>
         """.trimIndent()
     }

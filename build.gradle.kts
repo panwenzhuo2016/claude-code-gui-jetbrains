@@ -106,10 +106,9 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.9.2 - Battery UI & Session Restore Fix</h3>
+            <h3>0.9.3 - Internal API Compatibility Fix</h3>
             <ul>
-                <li>Fixed battery UI auto-refresh and context window usage restore on session recovery</li>
-                <li>Migrated build system from .envrc aliases to scripts/build.sh</li>
+                <li>Fixed Plugin Verifier warning by replacing direct internal API reference with reflection</li>
             </ul>
         """.trimIndent()
     }

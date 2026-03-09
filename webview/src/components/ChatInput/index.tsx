@@ -224,7 +224,7 @@ export function ChatInput() {
     // Enter: submit
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (!disabled && !isStreaming && (value.trim() || attachments.length > 0)) {
+      if (!disabled && (value.trim() || attachments.length > 0)) {
         inputHistory.pushToHistory(value);
         onSubmit(undefined, mode, attachments.length > 0 ? attachments : undefined);
         clearAttachments();
@@ -250,7 +250,7 @@ export function ChatInput() {
       e.preventDefault();
       onChange(historyValue);
     }
-  }, [disabled, isStreaming, value, attachments.length, onSubmit, inputHistory, onChange, palette, cycleMode, clearAttachments]);
+  }, [disabled, value, attachments.length, onSubmit, inputHistory, onChange, palette, cycleMode, clearAttachments]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
@@ -300,8 +300,8 @@ export function ChatInput() {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onPaste={handlePaste}
-            placeholder="⌘ Esc to focus or unfocus Claude"
-            disabled={disabled || isStreaming}
+            placeholder={isStreaming ? "Queue another message..." : "⌘ Esc to focus or unfocus Claude"}
+            disabled={disabled}
             rows={1}
             className="w-full px-3 cursor-text resize-none bg-transparent text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none disabled:opacity-50"
             style={{ minHeight: '20px', maxHeight: '200px' }}
@@ -343,7 +343,6 @@ export function ChatInput() {
             />
             <ActionButtons
               mode={mode}
-              isStreaming={isStreaming}
               isActive={isActive}
               isStopped={isStopped}
               disabled={disabled}

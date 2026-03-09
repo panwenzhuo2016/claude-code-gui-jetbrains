@@ -2,7 +2,6 @@ import { InputMode, INPUT_MODES } from '../../types/chatInput';
 
 interface Props {
   mode: InputMode;
-  isStreaming: boolean;
   isActive: boolean;
   isStopped: boolean;
   disabled: boolean;
@@ -17,7 +16,6 @@ interface Props {
 export function ActionButtons(props: Props) {
   const {
     mode,
-    isStreaming,
     isActive,
     isStopped,
     disabled,
@@ -57,7 +55,7 @@ export function ActionButtons(props: Props) {
       </div>
 
       {/* 전송/정지/계속 버튼 */}
-      {isActive && onStop ? (
+      {isActive && !hasValue && onStop ? (
         <button
           type="button"
           onClick={onStop}
@@ -83,11 +81,11 @@ export function ActionButtons(props: Props) {
         <button
           type="button"
           onClick={onSubmit}
-          disabled={disabled || isStreaming || !hasValue}
+          disabled={disabled || !hasValue}
           className={`
             flex items-center justify-center w-[26px] h-[26px] rounded-md transition-all
             ${config.sendButtonBg} text-white
-            ${disabled || isStreaming || !hasValue
+            ${disabled || !hasValue
               ? 'opacity-40 cursor-not-allowed'
               : 'opacity-100'
             }

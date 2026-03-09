@@ -36,7 +36,7 @@ function buildSubAgentMessages(progressEntries: LoadedMessageDto[]): SubAgentMes
     });
 }
 
-const SCROLL_THRESHOLD = 80;
+const SCROLL_THRESHOLD = 200;
 
 interface Props {
   isStreaming: boolean;

@@ -350,8 +350,8 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     };
     appendMessage(userMessage);
 
-    // 스트리밍 중이면 사용자 메시지만 추가 (큐잉).
-    // CLI가 현재 응답을 완료하면 stdin 버퍼의 다음 메시지를 읽어 새 턴을 시작한다.
+    // 스트리밍 중이면 사용자 메시지만 추가 (assistant placeholder 생성 스킵).
+    // 백엔드 전송과 큐잉은 ChatStreamContext가 담당한다.
     if (isStreaming) return;
 
     // Create assistant placeholder

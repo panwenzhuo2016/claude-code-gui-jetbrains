@@ -5,8 +5,19 @@ import { useTools } from '../hooks/useTools';
 import { useBridgeContext } from './BridgeContext';
 import { useSessionContext } from './SessionContext';
 import { LoadedMessageDto, Context, Attachment, SessionState } from '../types';
-import { MessageRole, LoadedMessageType } from '../dto/common';
 import { InputMode } from '../types/chatInput';
+
+/** 스트리밍 중 큐잉된 메시지의 bridge payload */
+interface QueuedMessage {
+  [key: string]: unknown;
+  sessionId: string;
+  isNewSession: boolean;
+  content: string;
+  attachments?: Array<Record<string, unknown>>;
+  context: Context[];
+  workingDir: string;
+  inputMode: InputMode;
+}
 
 interface ChatStreamContextType {
   // From useChatStream
@@ -74,6 +85,10 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
   const toggleThinkingExpanded = useCallback(() => setIsThinkingExpanded(prev => !prev), []);
 
+  // 스트리밍 중 새 메시지가 들어오면 여기에 큐잉.
+  // 현재 턴이 자연스럽게 완료(result)된 후 자동으로 flush된다.
+  const queuedMessageRef = useRef<QueuedMessage | null>(null);
+
   // Initialize useChatStream with bridge and callbacks
   const chatStream = useChatStream({
     bridge: {
@@ -106,6 +121,7 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     setIsThinkingExpanded(false);
     tools.clearToolUses();
     diffs.clearDiffs();
+    queuedMessageRef.current = null;
   }, [chatStream.clearMessages, chatStream.resetStreamState, tools.clearToolUses, diffs.clearDiffs]);
 
   // SessionContext.switchSession()이 호출될 때 동기적으로 리셋되도록 콜백 등록
@@ -145,7 +161,7 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bridge.isConnected, bridge.subscribe]);
 
-  // sendMessage: add to local state + send to Kotlin + create session if needed
+  // sendMessage: add to local state + send to backend (or queue if streaming)
   const sendMessage = useCallback(
     (content: string, inputMode: InputMode, context?: Context[], attachments?: Attachment[]) => {
       // Resolve session ID: use existing or generate new one
@@ -158,21 +174,31 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
         console.log('[ChatStreamContext] New session created:', sessionId);
       }
 
-      // Add to local chat state
+      // Add to local chat state (항상 — UI에는 즉시 표시)
       chatStream.addUserMessage(content, context, attachments);
 
-      // Send to bridge with sessionId
-      bridge.send('SEND_MESSAGE', {
+      const payload: QueuedMessage = {
         sessionId,
         isNewSession,
         content,
         attachments: attachments?.map(a => ({ ...a.toPayload() })),
         context: context || [],
-        workingDir: session.workingDirectory,
+        workingDir: session.workingDirectory ?? '',
         inputMode,
-      }).then((response) => {
+      };
+
+      // 스트리밍 중이면 큐잉. stdin에 즉시 write하지 않는다.
+      // 현재 턴이 자연스럽게 완료(result)된 후 useEffect에서 자동 flush.
+      if (chatStream.isStreaming) {
+        console.log('[ChatStreamContext] Queuing message — waiting for current turn to complete');
+        queuedMessageRef.current = payload;
+        return;
+      }
+
+      // 스트리밍 중이 아니면 즉시 전송
+      bridge.send('SEND_MESSAGE', payload).then((response) => {
         if (response?.status === 'error') {
-          console.error('[ChatStreamContext] Kotlin error:', response.error);
+          console.error('[ChatStreamContext] Backend error:', response.error);
         }
       }).catch((error) => {
         console.error('[ChatStreamContext] Failed to send message to bridge:', error);
@@ -180,6 +206,23 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     },
     [chatStream, bridge, session]
   );
+
+  // 스트리밍 종료(result 수신) 시 큐잉된 메시지 자동 전송.
+  // useEffect를 사용하여 endStreaming()의 상태 리셋이 완료된 후 flush한다.
+  useEffect(() => {
+    if (!chatStream.isStreaming && queuedMessageRef.current) {
+      const queued = queuedMessageRef.current;
+      queuedMessageRef.current = null;
+      console.log('[ChatStreamContext] Flushing queued message after turn complete');
+      bridge.send('SEND_MESSAGE', queued).then((response) => {
+        if (response?.status === 'error') {
+          console.error('[ChatStreamContext] Queued message error:', response.error);
+        }
+      }).catch((error) => {
+        console.error('[ChatStreamContext] Failed to send queued message:', error);
+      });
+    }
+  }, [chatStream.isStreaming, bridge]);
 
   // handleSubmit: convenience wrapper for form submission
   const handleSubmit = useCallback(
@@ -193,34 +236,17 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     [input, sendMessage]
   );
 
-  // stop: stop streaming locally + send STOP_SESSION to Kotlin + set idle state
+  // stop: stdin interrupt를 백엔드에 전송.
+  // CLI가 현재 턴을 중단하고, 큐잉된 메시지가 있으면 그것을 이어서 처리한다.
+  // 로컬 상태(streaming, sessionState)는 CLI의 스트림 이벤트에 의해 자연스럽게 갱신된다.
   const stop = useCallback(() => {
-    console.log('[ChatStreamContext] Stopping session');
+    console.log('[ChatStreamContext] Sending interrupt to backend');
 
-    // Determine interrupt type based on current session state
-    const interruptText = session.sessionState === SessionState.WaitingPermission
-      ? '[Request interrupted by user for tool use]'
-      : '[Request interrupted by user]';
-
-    // Add interrupted message immediately to chat
-    chatStream.appendMessage({
-      type: LoadedMessageType.User,
-      uuid: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      message: { role: MessageRole.User, content: interruptText } as LoadedMessageDto['message'],
-    });
-
-    // Stop local streaming
-    chatStream.stop();
-
-    // Send stop signal to backend
+    // Send interrupt signal to backend (stdin control_request)
     bridge.send('STOP_SESSION', {}).catch((error) => {
-      console.error('[ChatStreamContext] Failed to stop session:', error);
+      console.error('[ChatStreamContext] Failed to send interrupt:', error);
     });
-
-    // Set session state to idle
-    session.setSessionState(SessionState.Idle);
-  }, [chatStream, bridge, session]);
+  }, [bridge]);
 
   // continue: reset isStopped + send auto-continue message via --resume
   const continueGeneration = useCallback(() => {

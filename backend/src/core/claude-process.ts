@@ -309,6 +309,34 @@ export function sendMessageToProcess(
 }
 
 /**
+ * CLI에 interrupt control_request를 보낸다.
+ * SIGTERM 대신 stdin을 통해 graceful하게 현재 생성을 중단시킨다.
+ * CLI는 interrupt를 받으면 현재 턴을 중단하고, stdin 버퍼에 대기 중인 다음 메시지를 처리한다.
+ */
+export function sendInterruptToProcess(
+  connections: ConnectionManager,
+  sessionId: string,
+): boolean {
+  const session = connections.getSession(sessionId);
+  if (!session?.process?.stdin?.writable) {
+    console.error('[node-backend]', `No writable stdin for session: ${sessionId}`);
+    return false;
+  }
+
+  const requestId = Math.random().toString(36).substring(2, 15);
+  const stdinMessage =
+    JSON.stringify({
+      type: 'control_request',
+      request_id: requestId,
+      request: { subtype: 'interrupt' },
+    }) + '\n';
+
+  console.error('[node-backend]', `Sending interrupt to stdin: ${stdinMessage.trimEnd()}`);
+  session.process.stdin.write(stdinMessage);
+  return true;
+}
+
+/**
  * tool_result를 CLI stdin에 전송한다.
  * 일반 user message와 달리 content를 tool_result 블록 배열로 구성한다.
  */

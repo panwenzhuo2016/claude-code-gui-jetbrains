@@ -1,6 +1,7 @@
 import type { ConnectionManager } from '../../ws/connection-manager';
 import type { Bridge } from '../../bridge/bridge-interface';
 import type { IPCMessage } from '../types';
+import { sendInterruptToProcess } from '../claude-process';
 
 export function stopGenerationHandler(
   connectionId: string,
@@ -10,11 +11,15 @@ export function stopGenerationHandler(
 ): void {
   const client = connections.getClient(connectionId);
   if (client?.subscribedSessionId) {
-    const session = connections.getSession(client.subscribedSessionId);
+    const sessionId = client.subscribedSessionId;
+    const session = connections.getSession(sessionId);
     if (session?.process) {
-      console.error('[node-backend]', `Stopping process for session ${client.subscribedSessionId}`);
-      session.process.kill('SIGTERM');
-      // process = null is handled in the close event
+      console.error('[node-backend]', `Interrupting generation for session ${sessionId} via stdin control_request`);
+      const sent = sendInterruptToProcess(connections, sessionId);
+      if (!sent) {
+        console.error('[node-backend]', `Interrupt failed, falling back to SIGTERM for ${sessionId}`);
+        session.process.kill('SIGTERM');
+      }
     }
   }
   connections.sendTo(connectionId, 'ACK', { requestId: message.requestId });

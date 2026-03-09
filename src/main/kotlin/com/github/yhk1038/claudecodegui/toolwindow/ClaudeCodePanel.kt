@@ -57,6 +57,9 @@ class ClaudeCodePanel(
     private val panelId = UUID.randomUUID().toString()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    // IME workaround: flag to prevent double-wrapping on subsequent page loads
+    private var imeWorkaroundInstalled = false
+
     private val backendService = NodeBackendService.getInstance(project)
     private val diffService: DiffService = DiffService.getInstance(project)
 
@@ -121,6 +124,7 @@ class ClaudeCodePanel(
             override fun onLoadEnd(browser: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
                 if (frame.isMain) {
                     injectCursorTracking(frame)
+                    installImeWorkaround()
                     logger.info("WebView loaded successfully")
                     javax.swing.SwingUtilities.invokeLater {
                         this@ClaudeCodePanel.browser.component.requestFocusInWindow()
@@ -182,6 +186,62 @@ class ClaudeCodePanel(
             })();
         """.trimIndent()
         frame.executeJavaScript(js, frame.url, 0)
+    }
+
+    /**
+     * JCEF IME NPE 워크어라운드.
+     * JBCefInputMethodAdapter.inputMethodTextChanged()에서 replacementRange가 null일 때
+     * NPE가 발생하는 JetBrains 플랫폼 버그(macOS + JCEF + CJK IME)를 우회합니다.
+     *
+     * 브라우저 컴포넌트 트리에 등록된 InputMethodListener를 찾아
+     * try-catch(NullPointerException)로 감싼 래퍼로 교체합니다.
+     * imeWorkaroundInstalled 플래그로 중복 래핑을 방지합니다.
+     */
+    private fun installImeWorkaround() {
+        if (imeWorkaroundInstalled) return
+
+        fun wrapListeners(component: java.awt.Component) {
+            val listeners = component.inputMethodListeners
+            if (listeners.isNullOrEmpty()) return
+
+            for (listener in listeners) {
+                component.removeInputMethodListener(listener)
+                component.addInputMethodListener(object : java.awt.event.InputMethodListener {
+                    override fun inputMethodTextChanged(event: java.awt.event.InputMethodEvent?) {
+                        try {
+                            listener.inputMethodTextChanged(event)
+                        } catch (e: NullPointerException) {
+                            // JBCefInputMethodAdapter.inputMethodTextChanged NPE 무시
+                            // replacementRange가 null일 때 발생하는 플랫폼 버그
+                            logger.warn("Suppressed JCEF IME NPE (replacementRange is null)", e)
+                        }
+                    }
+
+                    override fun caretPositionChanged(event: java.awt.event.InputMethodEvent?) {
+                        try {
+                            listener.caretPositionChanged(event)
+                        } catch (e: NullPointerException) {
+                            logger.warn("Suppressed JCEF IME NPE in caretPositionChanged", e)
+                        }
+                    }
+                })
+            }
+        }
+
+        fun traverseAndWrap(component: java.awt.Component) {
+            wrapListeners(component)
+            if (component is java.awt.Container) {
+                for (child in component.components) {
+                    traverseAndWrap(child)
+                }
+            }
+        }
+
+        javax.swing.SwingUtilities.invokeLater {
+            traverseAndWrap(browser.component)
+            imeWorkaroundInstalled = true
+            logger.info("JCEF IME NPE workaround installed")
+        }
     }
 
     /**

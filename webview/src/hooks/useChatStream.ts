@@ -410,6 +410,22 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     setMessages(activeMessages);
     setError(null);
     console.log('[useChatStream] Loaded messages:', convertedMessages.length, '→ active chain:', activeMessages.length);
+
+    // 마지막 assistant 메시지에서 usage 복원
+    for (let i = activeMessages.length - 1; i >= 0; i--) {
+      const msg = activeMessages[i];
+      if (msg.type === LoadedMessageType.Assistant && msg.message?.usage) {
+        const usage = msg.message.usage as { input_tokens?: number; output_tokens?: number };
+        if (typeof usage.input_tokens === 'number') {
+          setContextWindowUsage({
+            inputTokens: usage.input_tokens,
+            outputTokens: usage.output_tokens ?? 0,
+            model: (msg.message.model as string) ?? null,
+          });
+          break;
+        }
+      }
+    }
   }, []);
 
   // Retry

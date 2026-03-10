@@ -73,4 +73,5 @@ export enum LoadedMessageType {
   Result = 'result',
   Progress = 'progress',
   Summary = 'summary',
+  Notification = 'notification',
 }

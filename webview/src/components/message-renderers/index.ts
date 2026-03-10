@@ -4,6 +4,7 @@ export { AssistantMessageRenderer } from './AssistantMessageRenderer';
 export { SystemMessageRenderer } from './SystemMessageRenderer';
 export { InterruptedMessageRenderer } from './InterruptedMessageRenderer';
 export { SummaryMessageRenderer } from './SummaryMessageRenderer';
+export { NotificationMessageRenderer } from './NotificationMessageRenderer';
 
 // Hooks
 export { useCopyToClipboard } from './hooks/useCopyToClipboard';

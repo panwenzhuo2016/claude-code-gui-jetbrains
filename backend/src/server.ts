@@ -3,6 +3,7 @@ import { startWebSocketServer } from './ws/ws-server';
 import { BrowserBridge } from './bridge/browser-bridge';
 import { JetBrainsBridge } from './bridge/jetbrains-bridge';
 import { handleMessage } from './core/handlers/index';
+import { watchClaudeSettingsFile, stopWatchingClaudeSettingsFile } from './core/features/claude-settings';
 
 /**
  * JetBrains 모드: JETBRAINS_MODE=true 환경변수로 감지
@@ -90,8 +91,15 @@ async function main() {
     webviewDir ? `(webviewDir: ${webviewDir})` : '',
   );
 
+  // Start watching Claude settings file for external changes
+  watchClaudeSettingsFile((settings) => {
+    console.log('[node-backend]', 'Broadcasting CLAUDE_SETTINGS_CHANGED event');
+    connections.broadcastToAll('CLAUDE_SETTINGS_CHANGED', { settings });
+  });
+
   function shutdown(signal: string) {
     console.error('[node-backend]', `${signal} received, shutting down...`);
+    stopWatchingClaudeSettingsFile();
     connections.shutdownAll();
     close();
     process.exit(0);

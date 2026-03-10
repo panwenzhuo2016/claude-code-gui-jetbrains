@@ -366,6 +366,33 @@ export function sendToolResultToProcess(
 }
 
 /**
+ * set_model control_request를 CLI stdin에 전송한다.
+ * 세션 레벨 모델 변경용 (프로세스 라이프사이클 동안만 유효).
+ */
+export function sendSetModelToProcess(
+  connections: ConnectionManager,
+  sessionId: string,
+  model: string,
+): boolean {
+  const session = connections.getSession(sessionId);
+  if (!session?.process?.stdin?.writable) {
+    console.error('[node-backend]', `No writable stdin for session: ${sessionId}`);
+    return false;
+  }
+
+  const stdinMessage =
+    JSON.stringify({
+      type: 'control_request',
+      request_id: `set_model_${Date.now()}`,
+      request: { subtype: 'set_model', model },
+    }) + '\n';
+
+  console.error('[node-backend]', `Sending set_model "${model}" to stdin`);
+  session.process.stdin.write(stdinMessage);
+  return true;
+}
+
+/**
  * control_response를 CLI stdin에 전송한다.
  * AskUserQuestion 등 control_request에 대한 응답용.
  */

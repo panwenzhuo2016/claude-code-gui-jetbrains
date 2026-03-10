@@ -4,7 +4,7 @@ import { useDiffs } from '../hooks/useDiffs';
 import { useTools } from '../hooks/useTools';
 import { useBridgeContext } from './BridgeContext';
 import { useSessionContext } from './SessionContext';
-import { LoadedMessageDto, Context, Attachment, SessionState } from '../types';
+import { LoadedMessageDto, Context, Attachment, SessionState, ClaudeModel, parseClaudeModel } from '../types';
 import { InputMode } from '../types/chatInput';
 
 /** 스트리밍 중 큐잉된 메시지의 bridge payload */
@@ -55,6 +55,8 @@ interface ChatStreamContextType {
 
   // Session lifecycle
   systemInit: Record<string, unknown> | null;
+  sessionModel: ClaudeModel | null;
+  setSessionModel: (model: ClaudeModel | null) => void;
   resetForSessionSwitch: () => void;
 
   // Context window usage
@@ -84,6 +86,7 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
   const [input, setInput] = useState('');
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
   const toggleThinkingExpanded = useCallback(() => setIsThinkingExpanded(prev => !prev), []);
+  const [sessionModel, setSessionModel] = useState<ClaudeModel | null>(null);
 
   // 스트리밍 중 새 메시지가 들어오면 여기에 큐잉.
   // 현재 턴이 자연스럽게 완료(result)된 후 자동으로 flush된다.
@@ -113,12 +116,21 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     },
   });
 
+  // systemInit 변경 시 sessionModel 동기화
+  useEffect(() => {
+    if (chatStream.systemInit) {
+      const rawModel = (chatStream.systemInit as Record<string, unknown>).model as string | null ?? null;
+      setSessionModel(parseClaudeModel(rawModel));
+    }
+  }, [chatStream.systemInit]);
+
   // 모든 세션별 상태를 한 번에 리셋하는 통합 함수
   const resetForSessionSwitch = useCallback(() => {
     chatStream.clearMessages();
     chatStream.resetStreamState();
     setInput('');
     setIsThinkingExpanded(false);
+    setSessionModel(null);
     tools.clearToolUses();
     diffs.clearDiffs();
     queuedMessageRef.current = null;
@@ -305,6 +317,8 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
 
     // Session lifecycle
     systemInit: chatStream.systemInit,
+    sessionModel,
+    setSessionModel,
     resetForSessionSwitch,
 
     // Context window usage

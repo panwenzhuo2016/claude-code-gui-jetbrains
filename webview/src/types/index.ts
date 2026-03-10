@@ -231,3 +231,4 @@ export function getToolUses(message: LoadedMessageDto): ToolUse[] {
 // Settings types
 export * from './settings';
 export * from './attachment';
+export * from './models';

@@ -32,6 +32,9 @@ import { getDetectedCliPathHandler } from './getDetectedCliPath';
 import { pickFilesHandler } from './pickFiles';
 import { getPluginUpdatesHandler } from './getPluginUpdates';
 import { updatePluginHandler } from './updatePlugin';
+import { getClaudeSettingsHandler } from './getClaudeSettings';
+import { saveClaudeSettingsHandler } from './saveClaudeSettings';
+import { setModelHandler } from './setModel';
 
 export async function handleMessage(
   connectionId: string,
@@ -134,6 +137,15 @@ export async function handleMessage(
       break;
     case 'UPDATE_PLUGIN':
       await updatePluginHandler(connectionId, message, connections, bridge);
+      break;
+    case 'GET_CLAUDE_SETTINGS':
+      await getClaudeSettingsHandler(connectionId, message, connections, bridge);
+      break;
+    case 'SAVE_CLAUDE_SETTINGS':
+      await saveClaudeSettingsHandler(connectionId, message, connections, bridge);
+      break;
+    case 'SET_MODEL':
+      setModelHandler(connectionId, message, connections, bridge);
       break;
     default:
       console.error('[node-backend]', `Unknown message type: ${message.type}`);

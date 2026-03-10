@@ -20,6 +20,7 @@ import { AttachmentPreview } from './AttachmentPreview';
 import { ContextWindowTag } from './ContextWindowTag';
 import { DragOverlay } from './DragOverlay';
 import { AttachMenu } from './AttachMenu';
+import { ModelSwitchOverlay, SWITCH_MODEL_EVENT } from '@/components/ModelSwitchOverlay';
 
 export function ChatInput() {
   const { textareaRef } = useChatInputFocus();
@@ -56,6 +57,7 @@ export function ChatInput() {
 
   const lastMetaArrowTime = useRef<number>(0);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showModelSwitch, setShowModelSwitch] = useState(false);
 
   // 커맨드 팔레트 "Attach file..." 항목 연동
   useEffect(() => {
@@ -64,6 +66,13 @@ export function ChatInput() {
     };
     window.addEventListener('command-palette:attach-files', handleAttachFromPalette);
     return () => window.removeEventListener('command-palette:attach-files', handleAttachFromPalette);
+  }, []);
+
+  // 커맨드 팔레트 "Switch model..." 항목 연동
+  useEffect(() => {
+    const handler = () => setShowModelSwitch(true);
+    window.addEventListener(SWITCH_MODEL_EVENT, handler);
+    return () => window.removeEventListener(SWITCH_MODEL_EVENT, handler);
   }, []);
 
   const disabled = sessionState === SessionState.Error || !workingDirectory;
@@ -285,6 +294,11 @@ export function ChatInput() {
               onClose={palette.closePanel}
             />
           </div>
+        )}
+
+        {/* Model switch panel */}
+        {showModelSwitch && (
+          <ModelSwitchOverlay onClose={() => setShowModelSwitch(false)} />
         )}
 
         {/* 드래그 오버 오버레이 */}

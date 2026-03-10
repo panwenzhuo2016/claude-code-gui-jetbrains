@@ -6,6 +6,7 @@ import { ChatStreamProvider, useChatStreamContext } from './ChatStreamContext';
 import { ThemeProvider } from './ThemeContext';
 import { Router } from '../router';
 import { SettingsProvider } from './SettingsContext';
+import { ClaudeSettingsProvider } from './ClaudeSettingsContext';
 import { ChatInputFocusProvider } from './ChatInputFocusContext';
 import { CommandPaletteProvider } from '../commandPalette/CommandPaletteProvider';
 import type { LoadedMessageDto } from '../types';
@@ -54,8 +55,10 @@ function SessionLoader({ children }: { children: ReactNode }) {
  * 3. SessionProvider - Session management (depends on Bridge)
  * 4. ChatStreamProvider - Chat state + Streaming + Diffs + Tools (depends on Bridge + Session)
  * 5. CommandPaletteProvider - 슬래시 커맨드 매니저 (depends on ChatStream + Session)
- * 6. ThemeProvider - Theme management (independent)
- * 7. SessionLoader - Auto-load sessions when bridge connects
+ * 6. ClaudeSettingsProvider - Claude Code settings (~/.claude/settings.json) (depends on Bridge)
+ * 7. SettingsProvider - IDE settings (terminal, theme, etc.) (depends on Bridge)
+ * 8. ThemeProvider - Theme management (independent)
+ * 9. SessionLoader - Auto-load sessions when bridge connects
  */
 export function AppProviders({ children }: AppProvidersProps) {
   return (
@@ -65,13 +68,15 @@ export function AppProviders({ children }: AppProvidersProps) {
           <SessionProvider>
             <ChatStreamProvider>
               <CommandPaletteProvider>
-                <SettingsProvider>
-                <ThemeProvider>
-                  <ChatInputFocusProvider>
-                    <SessionLoader>{children}</SessionLoader>
-                  </ChatInputFocusProvider>
-                </ThemeProvider>
-                </SettingsProvider>
+                <ClaudeSettingsProvider>
+                  <SettingsProvider>
+                    <ThemeProvider>
+                      <ChatInputFocusProvider>
+                        <SessionLoader>{children}</SessionLoader>
+                      </ChatInputFocusProvider>
+                    </ThemeProvider>
+                  </SettingsProvider>
+                </ClaudeSettingsProvider>
               </CommandPaletteProvider>
             </ChatStreamProvider>
           </SessionProvider>

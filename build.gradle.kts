@@ -106,12 +106,11 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.9.5 - Environment & Compatibility Fix</h3>
+            <h3>0.10.0 - Model Switching & Claude Settings</h3>
             <ul>
-                <li>Fixed Node.js/CLI executable not found when IDE is launched from GUI (Dock, Spotlight, Finder)</li>
-                <li>Added Windows support for executable path discovery (which → where)</li>
-                <li>Used JetBrains EnvironmentUtil API to load full shell PATH including nvm, volta, fnm</li>
-                <li>Fixed sub-agent events not rendering during streaming</li>
+                <li>Added in-chat model switcher: switch between Default, Sonnet 4.6, Haiku 4.5, and Opus 4.6 per session</li>
+                <li>Added default model setting in Settings → CLI (persisted to ~/.claude/settings.json)</li>
+                <li>Notification message shown in chat when model is switched</li>
             </ul>
         """.trimIndent()
     }

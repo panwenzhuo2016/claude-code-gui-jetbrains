@@ -180,7 +180,7 @@ export function ChatMessageArea(props: Props) {
 
   // Render messages with widgets
   return (
-    <div ref={containerRef} className="max-w-4xl mx-auto text-xs" onClick={log}>
+    <div ref={containerRef} className="text-xs" onClick={log}>
       {mergedMessages.map((message) => (
         <div key={message.uuid} onClick={() => console.log('message', message.uuid, message)}>
           <MessageBubble message={message} onRetry={onRetry} />

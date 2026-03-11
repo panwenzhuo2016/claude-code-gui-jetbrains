@@ -12,15 +12,20 @@ import { CommandPaletteCommand, SlashCommand, StaticToggleItem } from './types';
  * Toggle and Link branches removed (no registered items use these types).
  */
 export function commandToItem(cmd: CommandPaletteCommand): PanelItem {
-  const base = {
+  const base: Partial<PanelItem> = {
     id: cmd.id,
     label: cmd.label,
     type: cmd.type,
     icon: cmd.icon,
     valueComponent: cmd.valueComponent,
-    disabled: cmd.disabled,
     keepOpen: cmd.keepOpen,
   };
+  // getter 프록시: cmd.disabled가 런타임에 변경되면 PanelItem에도 반영
+  Object.defineProperty(base, 'disabled', {
+    get: () => cmd.disabled,
+    enumerable: true,
+    configurable: true,
+  });
 
   switch (cmd.type) {
     case PanelItemType.Command: {

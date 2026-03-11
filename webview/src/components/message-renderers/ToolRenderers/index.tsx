@@ -15,6 +15,7 @@ import {WebFetchRenderer} from "./WebFetchRenderer.tsx";
 import {WebSearchRenderer} from "./WebSearchRenderer.tsx";
 import {WriteRenderer} from "./WriteRenderer.tsx";
 import {SkillRenderer} from "./SkillRenderer.tsx";
+import {ToolSearchRenderer} from "./ToolSearchRenderer.tsx";
 
 interface ToolRendererProps {
     toolUse: ToolUseBlockDto;
@@ -38,4 +39,5 @@ export const ToolRendererMap = new Map<string, FC<ToolRendererProps>>([
     ['WebSearch', WebSearchRenderer],
     ['Write', WriteRenderer],
     ['Skill', SkillRenderer],
+    ['ToolSearch', ToolSearchRenderer],
 ]);

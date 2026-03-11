@@ -23,6 +23,8 @@ export interface UseChatStreamOptions {
   onError?: (error: Error) => void;
   /** 시스템 메시지 수신 시 콜백 */
   onSystemMessage?: (data: Record<string, unknown>) => void;
+  /** tool_use 블록 시작 시 콜백 (tool name 전달) */
+  onToolUseStart?: (toolName: string) => void;
 }
 
 export interface UseChatStreamReturn {
@@ -107,7 +109,7 @@ function filterActiveChain(messages: LoadedMessageDto[]): LoadedMessageDto[] {
 }
 
 export function useChatStream(options: UseChatStreamOptions): UseChatStreamReturn {
-  const { bridge, onStreamStart, onStreamEnd, onError, onSystemMessage } = options;
+  const { bridge, onStreamStart, onStreamEnd, onError, onSystemMessage, onToolUseStart } = options;
 
   const [messages, setMessages] = useState<LoadedMessageDto[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -569,6 +571,10 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
               activeToolUseBlockIndexRef.current = currentBlocks.length - 1;
               // Reset accumulated input JSON for new tool_use block
               accumulatedInputJsonRef.current = '';
+              // Notify tool_use start (for Plan Mode detection etc.)
+              if (contentBlock.name) {
+                onToolUseStart?.(contentBlock.name);
+              }
             } else if (contentBlock.type === ContentBlockType.Thinking) {
               const newBlock: ThinkingBlockDto = { type: ContentBlockType.Thinking, thinking: contentBlock.thinking ?? '' } as ThinkingBlockDto;
               currentBlocks.push(newBlock);

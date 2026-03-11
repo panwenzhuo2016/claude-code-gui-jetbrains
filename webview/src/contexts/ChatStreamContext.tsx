@@ -5,7 +5,7 @@ import { useTools } from '../hooks/useTools';
 import { useBridgeContext } from './BridgeContext';
 import { useSessionContext } from './SessionContext';
 import { LoadedMessageDto, Context, Attachment, SessionState, ClaudeModel, parseClaudeModel } from '../types';
-import { InputMode } from '../types/chatInput';
+import { InputMode, InputModeValues } from '../types/chatInput';
 
 /** 스트리밍 중 큐잉된 메시지의 bridge payload */
 interface QueuedMessage {
@@ -88,6 +88,9 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
   const toggleThinkingExpanded = useCallback(() => setIsThinkingExpanded(prev => !prev), []);
   const [sessionModel, setSessionModel] = useState<ClaudeModel | null>(null);
 
+  // EnterPlanMode 진입 전의 모드를 저장 (ExitPlanMode 시 복원용)
+  const prePlanModeRef = useRef<InputMode | null>(null);
+
   // 스트리밍 중 새 메시지가 들어오면 여기에 큐잉.
   // 현재 턴이 자연스럽게 완료(result)된 후 자동으로 flush된다.
   const queuedMessageRef = useRef<QueuedMessage | null>(null);
@@ -114,6 +117,20 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     onSystemMessage: (data: Record<string, unknown>) => {
       console.log('[ChatStreamContext] System message:', data);
     },
+    onToolUseStart: (toolName: string) => {
+      if (toolName === 'EnterPlanMode') {
+        // 현재 모드가 이미 plan이 아닌 경우에만 저장
+        if (session.inputMode !== InputModeValues.PLAN) {
+          prePlanModeRef.current = session.inputMode;
+        }
+        session.setInputMode(InputModeValues.PLAN);
+      } else if (toolName === 'ExitPlanMode') {
+        // 저장해둔 이전 모드로 복원 (없으면 ask_before_edit)
+        const restoreMode = prePlanModeRef.current ?? InputModeValues.ASK_BEFORE_EDIT;
+        prePlanModeRef.current = null;
+        session.setInputMode(restoreMode);
+      }
+    },
   });
 
   // systemInit 변경 시 sessionModel 동기화
@@ -134,6 +151,7 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
     tools.clearToolUses();
     diffs.clearDiffs();
     queuedMessageRef.current = null;
+    prePlanModeRef.current = null;
   }, [chatStream.clearMessages, chatStream.resetStreamState, tools.clearToolUses, diffs.clearDiffs]);
 
   // SessionContext.switchSession()이 호출될 때 동기적으로 리셋되도록 콜백 등록

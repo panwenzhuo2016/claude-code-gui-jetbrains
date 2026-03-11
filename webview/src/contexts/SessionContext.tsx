@@ -7,6 +7,7 @@ import { useApi } from './ApiContext';
 import { getAdapter, onBridgeReady } from '../adapters';
 import { toTitle } from '../mappers/sessionTransformer';
 import { Route, routeToPath, sessionToPath, withWorkingDir } from '../router/routes';
+import { InputMode, MODE_CYCLE } from '../types/chatInput';
 
 
 interface SessionContextValue {
@@ -17,6 +18,13 @@ interface SessionContextValue {
   sessionState: SessionState;
   isLoading: boolean;
   workingDirectory: string | null;
+
+  // Input mode
+  inputMode: InputMode;
+  setInputMode: (mode: InputMode) => void;
+  cycleInputMode: () => void;
+  /** 설정값에서 로드된 초기 모드를 동기화 (사용자가 직접 변경하지 않은 경우에만 적용) */
+  syncInitialInputMode: (initialMode: InputMode) => void;
 
   // Actions
   setCurrentSessionId: (sessionId: string | null) => void;
@@ -53,6 +61,30 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const beforeSwitchRef = useRef<(() => void) | null>(null);
   const registerBeforeSwitch = useCallback((cb: () => void) => {
     beforeSwitchRef.current = cb;
+  }, []);
+
+  // Input mode 상태
+  const [inputMode, setInputModeState] = useState<InputMode>('ask_before_edit');
+  const hasUserChangedMode = useRef(false);
+
+  const setInputMode = useCallback((newMode: InputMode) => {
+    hasUserChangedMode.current = true;
+    setInputModeState(newMode);
+  }, []);
+
+  const cycleInputMode = useCallback(() => {
+    hasUserChangedMode.current = true;
+    setInputModeState((current) => {
+      const currentIndex = MODE_CYCLE.indexOf(current);
+      const nextIndex = (currentIndex + 1) % MODE_CYCLE.length;
+      return MODE_CYCLE[nextIndex];
+    });
+  }, []);
+
+  const syncInitialInputMode = useCallback((initialMode: InputMode) => {
+    if (!hasUserChangedMode.current) {
+      setInputModeState(initialMode);
+    }
   }, []);
 
   const [workingDirectory, setWorkingDirectoryState] = useState<string | null>(() => {
@@ -184,6 +216,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     beforeSwitchRef.current?.();
     setCurrentSessionId(null);
     setSessionState(SessionState.Idle);
+    hasUserChangedMode.current = false;
 
     // URL을 /sessions/new로 복원
     const targetPath = routeToPath(Route.NEW_SESSION);
@@ -221,6 +254,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
       setCurrentSessionId(sessionId);
       setSessionState(SessionState.Idle);
+      hasUserChangedMode.current = false;
 
       // URL 동기화 (순환 방지: 현재 pathname과 비교)
       const targetPath = sessionToPath(sessionId);
@@ -294,6 +328,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
     sessionState,
     isLoading,
     workingDirectory,
+    inputMode,
+    setInputMode,
+    cycleInputMode,
+    syncInitialInputMode,
     setCurrentSessionId,
     loadSessions,
     resetToNewSession,

@@ -3,7 +3,6 @@ import { CommandPalettePanel } from '@/commandPalette/ui/CommandPalettePanel';
 import { useCommandPalette } from '@/commandPalette/hooks/useCommandPalette';
 import { PanelSectionId, PanelItemType, CommandItem } from '@/types/commandPalette';
 import { INPUT_MODES } from '../../types/chatInput';
-import { useInputMode } from './hooks/useInputMode';
 import { InputModeTag } from './InputModeTag';
 import { ActionButtons } from './ActionButtons';
 import { useChatInputFocus } from '../../contexts/ChatInputFocusContext';
@@ -28,7 +27,7 @@ import { EffortLevel, nextEffortLevel, parseEffortLevel } from '@/types/effort';
 
 export function ChatInput() {
   const { textareaRef } = useChatInputFocus();
-  const { currentSessionId, sessionState, workingDirectory } = useSessionContext();
+  const { currentSessionId, sessionState, workingDirectory, inputMode: mode, cycleInputMode: cycleMode, syncInitialInputMode } = useSessionContext();
   const {
     messages,
     input: value,
@@ -104,9 +103,11 @@ export function ChatInput() {
 
   const disabled = sessionState === SessionState.Error || !workingDirectory;
 
-  const { mode, cycleMode } = useInputMode(
-    settings[SettingKey.INITIAL_INPUT_MODE]
-  );
+  // 설정에서 초기 모드가 변경되면 SessionContext에 동기화
+  const initialInputMode = settings[SettingKey.INITIAL_INPUT_MODE];
+  useEffect(() => {
+    syncInitialInputMode(initialInputMode);
+  }, [initialInputMode, syncInitialInputMode]);
 
   const modeConfig = INPUT_MODES[mode];
 

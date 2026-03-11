@@ -174,6 +174,7 @@ export function useCommandPalette({ onChange, textareaRef }: UseCommandPaletteOp
     if (item.type === PanelItemType.Action || item.type === PanelItemType.Command) {
       (item as any).action?.();
     }
+    if (item.keepOpen) return;
     onChange('');
     setShowSlashCommands(false);
     resetSelection();

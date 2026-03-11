@@ -19,6 +19,7 @@ export function commandToItem(cmd: CommandPaletteCommand): PanelItem {
     icon: cmd.icon,
     valueComponent: cmd.valueComponent,
     disabled: cmd.disabled,
+    keepOpen: cmd.keepOpen,
   };
 
   switch (cmd.type) {

@@ -49,6 +49,7 @@ export interface CommandPaletteCommand {
   readonly icon?: IconType;
   readonly valueComponent?: () => React.ReactNode;
   readonly disabled: boolean;
+  readonly keepOpen?: boolean;
   readonly order?: number;
 
   execute(): Promise<void>;
@@ -131,6 +132,7 @@ export class StaticToggleItem implements CommandPaletteCommand {
 export class StaticItem implements CommandPaletteCommand {
   readonly type = PanelItemType.Action;
   readonly disabled: boolean;
+  readonly keepOpen?: boolean;
   readonly order?: number;
 
   private action?: () => Promise<void>;
@@ -144,6 +146,7 @@ export class StaticItem implements CommandPaletteCommand {
       icon?: IconType;
       valueComponent?: () => React.ReactNode;
       disabled?: boolean;
+      keepOpen?: boolean;
       order?: number;
       action?: () => Promise<void>;
       serviceAction?: (services: CommandPaletteServices) => Promise<void>;
@@ -152,6 +155,7 @@ export class StaticItem implements CommandPaletteCommand {
     this.icon = options?.icon;
     this.valueComponent = options?.valueComponent;
     this.disabled = options?.disabled ?? true;
+    this.keepOpen = options?.keepOpen;
     this.order = options?.order;
     this.action = options?.action;
     this.serviceAction = options?.serviceAction;

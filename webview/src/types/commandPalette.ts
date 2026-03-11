@@ -39,6 +39,7 @@ export interface PanelItemBase {
   icon?: IconType;
   valueComponent?: () => React.ReactNode;
   disabled?: boolean;
+  keepOpen?: boolean;
   textStyle?: {
     underline?: boolean;
     italic?: boolean;

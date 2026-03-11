@@ -21,6 +21,10 @@ import { ContextWindowTag } from './ContextWindowTag';
 import { DragOverlay } from './DragOverlay';
 import { AttachMenu } from './AttachMenu';
 import { ModelSwitchOverlay, SWITCH_MODEL_EVENT } from '@/components/ModelSwitchOverlay';
+import { EFFORT_CYCLE_EVENT } from '@/commandPalette/sections/model/EffortItem';
+import { THINKING_TOGGLE_EVENT } from '@/commandPalette/sections/model/ThinkingItem';
+import { useClaudeSettings } from '@/contexts/ClaudeSettingsContext';
+import { EffortLevel, nextEffortLevel, parseEffortLevel } from '@/types/effort';
 
 export function ChatInput() {
   const { textareaRef } = useChatInputFocus();
@@ -55,6 +59,7 @@ export function ChatInput() {
     handleDrop,
   } = useAttachments();
 
+  const { settings: claudeSettings, updateSetting: updateClaudeSetting } = useClaudeSettings();
   const lastMetaArrowTime = useRef<number>(0);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showModelSwitch, setShowModelSwitch] = useState(false);
@@ -74,6 +79,28 @@ export function ChatInput() {
     window.addEventListener(SWITCH_MODEL_EVENT, handler);
     return () => window.removeEventListener(SWITCH_MODEL_EVENT, handler);
   }, []);
+
+  // 커맨드 팔레트 "Effort" 항목 연동: 클릭 시 레벨 순환
+  useEffect(() => {
+    const handler = () => {
+      const current = parseEffortLevel(claudeSettings.effortLevel);
+      const next = nextEffortLevel(current);
+      const value = next === EffortLevel.AUTO ? null : next;
+      void updateClaudeSetting('effortLevel', value);
+    };
+    window.addEventListener(EFFORT_CYCLE_EVENT, handler);
+    return () => window.removeEventListener(EFFORT_CYCLE_EVENT, handler);
+  }, [claudeSettings.effortLevel, updateClaudeSetting]);
+
+  // 커맨드 팔레트 "Thinking" 항목 연동: 라벨 클릭 시 토글
+  useEffect(() => {
+    const handler = () => {
+      const current = claudeSettings.alwaysThinkingEnabled ?? true;
+      void updateClaudeSetting('alwaysThinkingEnabled', !current);
+    };
+    window.addEventListener(THINKING_TOGGLE_EVENT, handler);
+    return () => window.removeEventListener(THINKING_TOGGLE_EVENT, handler);
+  }, [claudeSettings.alwaysThinkingEnabled, updateClaudeSetting]);
 
   const disabled = sessionState === SessionState.Error || !workingDirectory;
 

@@ -343,7 +343,7 @@ export function ChatInput() {
           {/* 좌측: 모드 태그 + 파일 태그들 */}
           <div className="flex items-center gap-4">
             <InputModeTag mode={mode} onClick={cycleMode} />
-            <ContextWindowTag onClick={handleCompact} />
+            <ContextWindowTag onClick={handleCompact} disabled={isStreaming} />
           </div>
 
           {/* 우측: 액션 버튼들 + 첨부 드롭다운 메뉴 */}

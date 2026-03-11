@@ -8,19 +8,23 @@ interface Props extends HTMLProps<HTMLButtonElement> {
 }
 
 export function Tag(props: Props) {
-    const {type = 'button', title = '', className = '', children, onClick, ...res} = props;
+    const {type = 'button', title = '', className = '', children, onClick, disabled, ...res} = props;
 
     return (
         <button
             type={type}
             className={`
                 inline-flex items-center gap-1 px-1 py-[2px] rounded
-                text-[11px] font-medium text-zinc-400 transition-colors
-                cursor-pointer hover:bg-white/[7%]
+                text-[11px] font-medium transition-colors
+                ${disabled
+                    ? 'text-zinc-500 cursor-default'
+                    : 'text-zinc-400 cursor-pointer hover:bg-white/[7%]'
+                }
                 ${className}
             `}
             title={title}
             onClick={onClick}
+            disabled={disabled}
             {...res}
         >
             {children}

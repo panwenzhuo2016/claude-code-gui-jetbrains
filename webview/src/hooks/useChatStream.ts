@@ -50,7 +50,7 @@ export interface UseChatStreamReturn {
   /** 스트림 관련 모든 내부 상태를 초기화 (clear conversation 등에서 사용) */
   resetStreamState: () => void;
   systemInit: Record<string, unknown> | null;
-  contextWindowUsage: { inputTokens: number; outputTokens: number; model: string | null } | null;
+  contextWindowUsage: { totalTokens: number; contextWindow: number; maxOutputTokens: number } | null;
 }
 
 /**
@@ -116,9 +116,9 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   const [error, setError] = useState<Error | null>(null);
   const [systemInit, setSystemInit] = useState<Record<string, unknown> | null>(null);
   const [contextWindowUsage, setContextWindowUsage] = useState<{
-    inputTokens: number;
-    outputTokens: number;
-    model: string | null;
+    totalTokens: number;
+    contextWindow: number;
+    maxOutputTokens: number;
   } | null>(null);
 
   // RAF 스로틀링 관련 refs
@@ -414,12 +414,20 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     for (let i = activeMessages.length - 1; i >= 0; i--) {
       const msg = activeMessages[i];
       if (msg.type === LoadedMessageType.Assistant && msg.message?.usage) {
-        const usage = msg.message.usage as { input_tokens?: number; output_tokens?: number };
+        const usage = msg.message.usage as {
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_creation_input_tokens?: number;
+          cache_read_input_tokens?: number;
+        };
         if (typeof usage.input_tokens === 'number') {
           setContextWindowUsage({
-            inputTokens: usage.input_tokens,
-            outputTokens: usage.output_tokens ?? 0,
-            model: (msg.message.model as string) ?? null,
+            totalTokens: usage.input_tokens
+              + (usage.cache_creation_input_tokens ?? 0)
+              + (usage.cache_read_input_tokens ?? 0)
+              + (usage.output_tokens ?? 0),
+            contextWindow: 200_000,
+            maxOutputTokens: 0,
           });
           break;
         }
@@ -647,14 +655,21 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
         const messageId = assistantMessage.id as string;
         const incomingContent = assistantMessage.content;
-        const assistantModel = assistantMessage.model as string | null;
-        const assistantUsage = assistantMessage.usage as { input_tokens?: number; output_tokens?: number } | null;
+        const assistantUsage = assistantMessage.usage as {
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_creation_input_tokens?: number;
+          cache_read_input_tokens?: number;
+        } | null;
         if (assistantUsage && typeof assistantUsage.input_tokens === 'number') {
-          setContextWindowUsage({
-            inputTokens: assistantUsage.input_tokens,
-            outputTokens: assistantUsage.output_tokens ?? 0,
-            model: assistantModel,
-          });
+          setContextWindowUsage(prev => ({
+            totalTokens: assistantUsage.input_tokens!
+              + (assistantUsage.cache_creation_input_tokens ?? 0)
+              + (assistantUsage.cache_read_input_tokens ?? 0)
+              + (assistantUsage.output_tokens ?? 0),
+            contextWindow: prev?.contextWindow ?? 200_000,
+            maxOutputTokens: prev?.maxOutputTokens ?? 0,
+          }));
         }
 
         if (!incomingContent || !Array.isArray(incomingContent)) return;
@@ -731,15 +746,18 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
           onErrorRef.current?.(err);
         }
 
-        // Context window usage 추출
-        const usageData = cliEvent.usage as { input_tokens?: number; output_tokens?: number } | null;
-        const modelStr = cliEvent.model as string | null;
-        if (usageData && typeof usageData.input_tokens === 'number') {
-          setContextWindowUsage({
-            inputTokens: usageData.input_tokens,
-            outputTokens: usageData.output_tokens ?? 0,
-            model: modelStr,
-          });
+        // result 이벤트에서 modelUsage를 통해 contextWindow/maxOutputTokens 업데이트
+        const modelUsage = cliEvent.modelUsage as Record<string, { contextWindow?: number; maxOutputTokens?: number }> | null;
+        const currentModel = cliEvent.model as string | null;
+        if (modelUsage && currentModel) {
+          const modelData = modelUsage[currentModel];
+          if (modelData) {
+            setContextWindowUsage(prev => ({
+              totalTokens: prev?.totalTokens ?? 0,
+              contextWindow: modelData.contextWindow ?? prev?.contextWindow ?? 200_000,
+              maxOutputTokens: modelData.maxOutputTokens ?? prev?.maxOutputTokens ?? 0,
+            }));
+          }
         }
 
         // 스트리밍 종료

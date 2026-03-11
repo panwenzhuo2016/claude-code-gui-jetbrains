@@ -3,18 +3,21 @@ import { Tag } from '@/components/ChatInput/Tag';
 import { useChatStreamContext } from '@/contexts/ChatStreamContext';
 import { calculateContextWindowPercent } from '@/utils/contextWindow';
 
-interface ContextWindowTagProps {
+interface Props {
   onClick?: () => void;
+  disabled?: boolean;
 }
 
-export function ContextWindowTag({ onClick }: ContextWindowTagProps) {
+export function ContextWindowTag(props: Props) {
+  const { onClick, disabled = false } = props;
   const { contextWindowUsage } = useChatStreamContext();
 
   if (!contextWindowUsage) return null;
 
-  const { inputTokens = 0, outputTokens = 0, model = null } = contextWindowUsage || {};
-  const percent = calculateContextWindowPercent(inputTokens, outputTokens, model);
+  const { totalTokens, contextWindow, maxOutputTokens } = contextWindowUsage;
+  const percent = calculateContextWindowPercent(totalTokens, contextWindow, maxOutputTokens);
   const remaining = 100 - percent;
+  const isClickable = !disabled && percent >= 10;
 
   return (
     <Tippy
@@ -26,14 +29,16 @@ export function ContextWindowTag({ onClick }: ContextWindowTagProps) {
         >
           <p>{remaining}% of context remaining until auto-compact.</p>
           <p className="text-zinc-400 mt-1 text-[10px]">
-            {inputTokens.toLocaleString()} input + {outputTokens.toLocaleString()} output tokens.
+            {totalTokens.toLocaleString()} tokens used
           </p>
-          <p className="text-zinc-300 mt-1 text-[10px]">Click to compact now.</p>
+          {isClickable && (
+            <p className="text-zinc-300 mt-1 text-[10px]">Click to compact now.</p>
+          )}
         </div>
       )}
     >
       <div className="flex items-center">
-        <Tag onClick={onClick}>
+        <Tag onClick={isClickable ? onClick : undefined} disabled={!isClickable}>
           <span>{percent}% used</span>
         </Tag>
       </div>

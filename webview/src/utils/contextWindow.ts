@@ -1,15 +1,11 @@
-const DEFAULT_MAX_CONTEXT = 200_000;
-
-export function getMaxContextTokens(_model: string | null): number {
-  return DEFAULT_MAX_CONTEXT;
-}
+const SYSTEM_OVERHEAD = 13_000;
 
 export function calculateContextWindowPercent(
-  inputTokens: number,
-  outputTokens: number,
-  model: string | null,
+  totalTokens: number,
+  contextWindow: number,
+  maxOutputTokens: number,
 ): number {
-  const maxTokens = getMaxContextTokens(model);
-  const percent = Math.round(((inputTokens + outputTokens) / maxTokens) * 100);
+  const availableTokens = Math.max(contextWindow - maxOutputTokens - SYSTEM_OVERHEAD, 1);
+  const percent = Math.round((totalTokens / availableTokens) * 100);
   return Math.min(percent, 100);
 }

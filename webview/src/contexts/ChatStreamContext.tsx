@@ -60,7 +60,7 @@ interface ChatStreamContextType {
   resetForSessionSwitch: () => void;
 
   // Context window usage
-  contextWindowUsage: { inputTokens: number; outputTokens: number; model: string | null } | null;
+  contextWindowUsage: { totalTokens: number; contextWindow: number; maxOutputTokens: number } | null;
 }
 
 const ChatStreamContext = createContext<ChatStreamContextType | undefined>(undefined);

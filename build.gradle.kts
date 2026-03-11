@@ -106,16 +106,13 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.10.1 - Stability & Settings Improvements</h3>
+            <h3>0.10.2 - Security Fixes & Standalone Browser Support</h3>
             <ul>
-                <li>Settings Language dropdown now syncs with ~/.claude/settings.json</li>
-                <li>Fixed chat screen not filling full container width</li>
-                <li>Fixed Volta shim priority in augmented PATH and improved Windows compatibility</li>
-                <li>Fixed plugin version showing 'vunknown' and corrected CLI path priority</li>
-                <li>Added StreamSafeErrorBoundary to individual tool renderers for crash resilience</li>
-                <li>Fixed streaming crash caused by incomplete JSON in ToolRenderer</li>
-                <li>Backend port is now configurable via BACKEND_PORT environment variable</li>
-                <li>Added CLI version refresh button</li>
+                <li>Added standalone browser execution support (run without JetBrains IDE)</li>
+                <li>Added ToolSearch tool renderer</li>
+                <li>Fixed security vulnerabilities (path traversal, command injection, XSS, WebSocket origin validation)</li>
+                <li>Fixed 10 functional regressions caused by security patches</li>
+                <li>Improved context window percentage calculation and compact button disable state</li>
             </ul>
         """.trimIndent()
     }

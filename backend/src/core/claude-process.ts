@@ -1,6 +1,6 @@
 import { spawn, execSync } from 'child_process';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { join, delimiter } from 'path';
 import type { ConnectionManager } from '../ws/connection-manager';
 import { readSettingsFile } from './features/settings';
 
@@ -11,17 +11,21 @@ import { readSettingsFile } from './features/settings';
  */
 function buildAugmentedPath(): string {
   const basePath = process.env.PATH ?? '';
-  const home = process.env.HOME ?? '';
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? '';
   if (!home) return basePath;
 
-  const extraDirs = [
+  const extraDirs: string[] = [
     join(home, '.local', 'bin'),          // pipx / manual installs
     join(home, '.npm-global', 'bin'),     // npm global (custom prefix)
     join(home, '.volta', 'bin'),          // volta
     join(home, '.fnm', 'aliases', 'default', 'bin'), // fnm
-    '/usr/local/bin',                      // macOS default / homebrew (Intel)
-    '/opt/homebrew/bin',                   // homebrew (Apple Silicon)
   ];
+  if (process.platform !== 'win32') {
+    extraDirs.push(
+      '/usr/local/bin',                    // macOS default / homebrew (Intel)
+      '/opt/homebrew/bin',                 // homebrew (Apple Silicon)
+    );
+  }
 
   // Add nvm current version bin if NVM_DIR is set
   const nvmDir = process.env.NVM_DIR ?? join(home, '.nvm');
@@ -41,8 +45,8 @@ function buildAugmentedPath(): string {
   const priorityDirs = extraDirs.filter(d => existsSync(d));
   if (priorityDirs.length === 0) return basePath;
   const prioritySet = new Set(priorityDirs);
-  const remaining = basePath.split(':').filter(d => !prioritySet.has(d)).join(':');
-  return `${priorityDirs.join(':')}:${remaining}`;
+  const remaining = basePath.split(delimiter).filter(d => !prioritySet.has(d)).join(delimiter);
+  return `${priorityDirs.join(delimiter)}${delimiter}${remaining}`;
 }
 
 const augmentedPath = buildAugmentedPath();

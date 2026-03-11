@@ -38,9 +38,11 @@ function buildAugmentedPath(): string {
     // nvm not available — skip
   }
 
-  const existingDirs = new Set(basePath.split(':'));
-  const additions = extraDirs.filter(d => !existingDirs.has(d) && existsSync(d));
-  return additions.length > 0 ? `${basePath}:${additions.join(':')}` : basePath;
+  const priorityDirs = extraDirs.filter(d => existsSync(d));
+  if (priorityDirs.length === 0) return basePath;
+  const prioritySet = new Set(priorityDirs);
+  const remaining = basePath.split(':').filter(d => !prioritySet.has(d)).join(':');
+  return `${priorityDirs.join(':')}:${remaining}`;
 }
 
 const augmentedPath = buildAugmentedPath();

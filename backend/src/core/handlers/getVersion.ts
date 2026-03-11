@@ -7,27 +7,34 @@ import { getAugmentedPath } from '../claude-process';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { resolve, dirname } from 'path';
-import { isDev } from '../../config/environment';
 
 declare const __PLUGIN_VERSION__: string;
 
 function getPluginVersion(): string {
-  if (isDev()) {
-    const currentDir = dirname(fileURLToPath(import.meta.url));
-    const pkgPath = resolve(currentDir, '../../..', 'package.json');
-    return JSON.parse(readFileSync(pkgPath, 'utf-8')).version;
+  // In bundled build (esbuild), __PLUGIN_VERSION__ is statically replaced with a string literal.
+  // In unbundled dev mode (tsx, ts-node), it remains undeclared → typeof returns 'undefined'.
+  if (typeof __PLUGIN_VERSION__ !== 'undefined') {
+    return __PLUGIN_VERSION__;
   }
-  return __PLUGIN_VERSION__;
+  // Fallback: read from package.json (unbundled dev mode only)
+  const currentDir = dirname(fileURLToPath(import.meta.url));
+  const pkgPath = resolve(currentDir, '../../..', 'package.json');
+  return JSON.parse(readFileSync(pkgPath, 'utf-8')).version;
 }
 
 function getCliVersion(): Promise<string | null> {
   return new Promise((resolve) => {
+    exec('which claude', { timeout: 5000, env: { ...process.env, PATH: getAugmentedPath() } }, (err, stdout) => {
+      const raw = stdout.trim();
+      console.log('which claude\n', raw, '\n');
+    });
     exec('claude --version', { timeout: 5000, env: { ...process.env, PATH: getAugmentedPath() } }, (err, stdout) => {
       if (err) {
         resolve(null);
         return;
       }
       const raw = stdout.trim();
+      console.log('claude --version\n', raw, '\n');
       const match = raw.match(/^[\d.]+/);
       resolve(match ? match[0] : raw);
     });

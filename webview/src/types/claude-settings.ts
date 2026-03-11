@@ -11,9 +11,11 @@
 
 export interface ClaudeSettingsState {
   model: string | null; // full model ID like 'claude-opus-4-6' or null for default
+  language: string | null; // Claude's preferred response language (e.g., "korean", "japanese")
   [key: string]: unknown; // extensible for future settings
 }
 
 export const DEFAULT_CLAUDE_SETTINGS: ClaudeSettingsState = {
   model: null,
+  language: null,
 };

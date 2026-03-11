@@ -1,10 +1,11 @@
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import { SettingSection, SettingRow } from '../common';
 import { ROUTE_META, Route } from '@/router/routes';
 import { useVersionInfo } from '@/hooks/useVersionInfo';
 
 export function AboutSettings() {
   const meta = ROUTE_META[Route.SETTINGS_ABOUT];
-  const { pluginVersion, cliVersion } = useVersionInfo();
+  const { pluginVersion, cliVersion, refresh, isLoading } = useVersionInfo();
 
   return (
     <div>
@@ -16,7 +17,18 @@ export function AboutSettings() {
         </SettingRow>
 
         <SettingRow label="Claude Code Version">
-          <span className="text-sm text-zinc-400">{cliVersion ?? 'not detected'}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-zinc-400">{cliVersion ?? 'not detected'}</span>
+            <button
+              onClick={refresh}
+              disabled={isLoading}
+              aria-label="Refresh version"
+              title="Refresh"
+              className="text-zinc-500 hover:text-zinc-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ArrowPathIcon className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </SettingRow>
       </SettingSection>
 

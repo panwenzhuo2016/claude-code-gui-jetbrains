@@ -106,11 +106,16 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.10.0 - Model Switching & Claude Settings</h3>
+            <h3>0.10.1 - Stability & Settings Improvements</h3>
             <ul>
-                <li>Added in-chat model switcher: switch between Default, Sonnet 4.6, Haiku 4.5, and Opus 4.6 per session</li>
-                <li>Added default model setting in Settings → CLI (persisted to ~/.claude/settings.json)</li>
-                <li>Notification message shown in chat when model is switched</li>
+                <li>Settings Language dropdown now syncs with ~/.claude/settings.json</li>
+                <li>Fixed chat screen not filling full container width</li>
+                <li>Fixed Volta shim priority in augmented PATH and improved Windows compatibility</li>
+                <li>Fixed plugin version showing 'vunknown' and corrected CLI path priority</li>
+                <li>Added StreamSafeErrorBoundary to individual tool renderers for crash resilience</li>
+                <li>Fixed streaming crash caused by incomplete JSON in ToolRenderer</li>
+                <li>Backend port is now configurable via BACKEND_PORT environment variable</li>
+                <li>Added CLI version refresh button</li>
             </ul>
         """.trimIndent()
     }

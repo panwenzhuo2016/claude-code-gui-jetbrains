@@ -66,26 +66,26 @@ export const ToolHeader = (props: {
     )
 }
 
-export const Container = ({children}: { children?: ReactNode }) => {
+export const Container = ({children, className = ''}: { children?: ReactNode; className?: string;}) => {
     return (
-        <div className="bg-zinc-800/40 border border-white/15 rounded text-[11px] font-mono">
+        <div className={`bg-zinc-800/40 border border-white/15 rounded text-[11px] font-mono ${className}`}>
             {children}
         </div>
     )
 }
 
 export const LabelValue = (props: {
-    label: string;
+    label?: string;
     className?: string;
     maxHeight?: string;
     children?: ReactNode;
 }) => {
     const [isFocused, setIsFocused] = useState(false);
-    const {label, children, className = '', maxHeight} = props;
+    const {label = '', children, className = '', maxHeight} = props;
 
     return (
         <div className={`flex items-start p-2 ${className}`}>
-            <Label name={label}/>
+            {label && <Label name={label}/>}
             <Value
                 isFocused={isFocused}
                 onClick={() => setIsFocused((v) => !v)}

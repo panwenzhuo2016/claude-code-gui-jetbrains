@@ -25,6 +25,8 @@ interface SessionContextValue {
   cycleInputMode: () => void;
   /** 설정값에서 로드된 초기 모드를 동기화 (사용자가 직접 변경하지 않은 경우에만 적용) */
   syncInitialInputMode: (initialMode: InputMode) => void;
+  /** 세션 전환 시 초기 모드 재동기화를 트리거하기 위한 카운터 */
+  modeResetTrigger: number;
 
   // Actions
   setCurrentSessionId: (sessionId: string | null) => void;
@@ -66,6 +68,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
   // Input mode 상태
   const [inputMode, setInputModeState] = useState<InputMode>('ask_before_edit');
   const hasUserChangedMode = useRef(false);
+  // 세션 전환 시 초기 모드 재동기화를 트리거하기 위한 카운터
+  const [modeResetTrigger, setModeResetTrigger] = useState(0);
 
   const setInputMode = useCallback((newMode: InputMode) => {
     hasUserChangedMode.current = true;
@@ -217,6 +221,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setCurrentSessionId(null);
     setSessionState(SessionState.Idle);
     hasUserChangedMode.current = false;
+    setModeResetTrigger(c => c + 1);
 
     // URL을 /sessions/new로 복원
     const targetPath = routeToPath(Route.NEW_SESSION);
@@ -255,6 +260,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setCurrentSessionId(sessionId);
       setSessionState(SessionState.Idle);
       hasUserChangedMode.current = false;
+      setModeResetTrigger(c => c + 1);
 
       // URL 동기화 (순환 방지: 현재 pathname과 비교)
       const targetPath = sessionToPath(sessionId);
@@ -332,6 +338,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setInputMode,
     cycleInputMode,
     syncInitialInputMode,
+    modeResetTrigger,
     setCurrentSessionId,
     loadSessions,
     resetToNewSession,

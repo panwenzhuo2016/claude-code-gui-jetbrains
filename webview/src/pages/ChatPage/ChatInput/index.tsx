@@ -27,7 +27,7 @@ import { EffortLevel, nextEffortLevel, parseEffortLevel } from '@/types/effort';
 
 export function ChatInput() {
   const { textareaRef } = useChatInputFocus();
-  const { currentSessionId, sessionState, workingDirectory, inputMode: mode, cycleInputMode: cycleMode, syncInitialInputMode } = useSessionContext();
+  const { currentSessionId, sessionState, workingDirectory, inputMode: mode, cycleInputMode: cycleMode, syncInitialInputMode, modeResetTrigger } = useSessionContext();
   const {
     messages,
     input: value,
@@ -103,11 +103,11 @@ export function ChatInput() {
 
   const disabled = sessionState === SessionState.Error || !workingDirectory;
 
-  // 설정에서 초기 모드가 변경되면 SessionContext에 동기화
+  // 설정에서 초기 모드가 변경되거나, 세션 전환 시 초기 모드로 재동기화
   const initialInputMode = settings[SettingKey.INITIAL_INPUT_MODE];
   useEffect(() => {
     syncInitialInputMode(initialInputMode);
-  }, [initialInputMode, syncInitialInputMode]);
+  }, [initialInputMode, syncInitialInputMode, modeResetTrigger]);
 
   const modeConfig = INPUT_MODES[mode];
 

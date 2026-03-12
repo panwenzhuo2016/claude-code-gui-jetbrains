@@ -1,4 +1,4 @@
-import { parseUserContent } from '../components/message-renderers/utils/parseUserContent';
+import { parseUserContent } from '../pages/ChatPage/message-renderers/utils/parseUserContent';
 
 /**
  * title을 표시용으로 변환

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PermissionDialog } from './PermissionDialog';
-import { PermissionBanner } from './PermissionBanner';
+import { PermissionBanner } from '../pages/ChatPage/PermissionBanner';
 import { usePermissions } from '../hooks/usePermissions';
 import { ToolUse } from '../types';
 import { ToolUseStatus } from '../dto/common';

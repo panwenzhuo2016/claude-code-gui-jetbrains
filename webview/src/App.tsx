@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AppProviders } from './contexts';
-import { ChatPanel, Settings, SwitchAccount } from './components';
-import { ProjectSelector } from './components/ProjectSelector';
+import { ChatPage, SettingsPage, SwitchAccountPage, ProjectSelectorPage } from './pages';
 import { AccountUsageModal } from './components/AccountUsageModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -22,12 +21,12 @@ function AppContent() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<ProjectSelector />} />
-        <Route path="/sessions/new" element={<ChatPanel />} />
-        <Route path="/sessions/:current_session_id" element={<ChatPanel />} />
+        <Route path="/" element={<ProjectSelectorPage />} />
+        <Route path="/sessions/new" element={<ChatPage />} />
+        <Route path="/sessions/:current_session_id" element={<ChatPage />} />
         <Route path="/settings" element={<Navigate to="/settings/general" replace />} />
-        <Route path="/settings/*" element={<Settings />} />
-        <Route path="/switch-account" element={<SwitchAccount />} />
+        <Route path="/settings/*" element={<SettingsPage />} />
+        <Route path="/switch-account" element={<SwitchAccountPage />} />
         <Route path="*" element={<Navigate to="/sessions/new" replace />} />
       </Routes>
       {isAccountUsageOpen && (

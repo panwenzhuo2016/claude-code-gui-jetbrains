@@ -1,5 +1,5 @@
 import { StaticItem } from '../../types';
-import { SWITCH_MODEL_EVENT } from '@/components/ModelSwitchOverlay';
+import { SWITCH_MODEL_EVENT } from '@/pages/ChatPage/ModelSwitchOverlay';
 import { useChatStreamContext } from '@/contexts/ChatStreamContext';
 import { getModelDef } from '@/types/models';
 

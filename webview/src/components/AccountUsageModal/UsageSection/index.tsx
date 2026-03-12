@@ -1,5 +1,5 @@
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
-import {useUsageData} from "@/components/Settings/Usage/useUsageData";
+import {useUsageData} from "@/pages/SettingsPage/Usage/useUsageData";
 import { SectionLabel } from '../SectionLabel';
 import { SkeletonRow } from '../SkeletonRow';
 import { UsageRow } from '../UsageRow';

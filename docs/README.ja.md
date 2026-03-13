@@ -19,6 +19,12 @@ Cursor と VS Code で使っているのと同じ Claude Code GUI が、JetBrain
 
 **Claude Code with GUI** は、Cursor および VS Code の Claude Code プラグインと同等の UI/UX を JetBrains IDE に提供することを目標としています。
 
+> **このプロジェクトは他のプロジェクトのクローンではありません。** すべてのソースコードは独自の設計に基づき、ゼロから完全に自作されています。
+>
+> **このプラグインは Claude Code CLI をspawnするラッパーとして動作します。** これは公式の Claude Code for VS Code 拡張機能と同じアプローチです。
+>
+> 現在、サービスの安定化に大きな力を注いでいます。バグを報告していただければ、平均1日以内に解決しておりますので、ぜひご報告ください。
+
 - JetBrains では、Claude Code はまだターミナルでのみ利用可能です。しかし、ターミナルよりも IDE ネイティブな体験の方が優れています。
 - JetBrains 用の他の Claude Code GUI プラグインは、元の Claude Code for VS Code UI/UX から大きく外れています。
 - さらに、急速に進化している Claude Code 体験（例：Agent Team、Remote Control）を GUI として提供することで、開発者がターミナルなしで最新機能を使い続けられるようにすることが目標です。

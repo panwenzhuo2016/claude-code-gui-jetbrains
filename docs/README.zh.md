@@ -19,6 +19,12 @@
 
 **Claude Code with GUI** 旨在为 JetBrains IDE 提供与 Cursor 和 VS Code 中 Claude Code 插件相同级别的 UI/UX 体验。
 
+> **本项目不是任何其他项目的克隆。** 所有源代码均基于自主设计，从零开始完全独立编写。
+>
+> **本插件作为 Claude Code CLI 的包装器运行。** 这与官方 Claude Code for VS Code 扩展采用的方式完全相同。
+>
+> 我们目前正在大力投入服务稳定化工作。如果您报告错误，我们通常会在平均1天内解决。非常感谢您的反馈和错误报告。
+
 - 在 JetBrains 中，Claude Code 仍然只能通过终端使用。但我更倾向于 IDE 原生体验而不是终端。
 - 其他用于 JetBrains 的 Claude Code GUI 插件已经偏离了原始 VS Code UI/UX 太远。
 - 除此之外，目标是以 GUI 形式提供快速演进的 Claude Code 体验（例如 Agent Team、Remote Control）—— 这样开发者无需使用终端即可保持最新功能。

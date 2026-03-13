@@ -106,16 +106,13 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.10.6 - Stability & Logging Improvements</h3>
+            <h3>0.10.7 - Documentation & Identity Update</h3>
             <ul>
-                <li>Added unified backend/WebView logging system for easier debugging</li>
-                <li>Fixed infinite reset loop in StreamSafeErrorBoundary when renderKey changes after error</li>
-                <li>Fixed Array.isArray() guard for streaming array fields</li>
-                <li>Fixed session directory path mismatch on Windows</li>
-                <li>Fixed all HTTP requests returning 403 Forbidden on Windows</li>
-                <li>Fixed InputMode not resetting on session switch/clear</li>
-                <li>Unified Permission UI into shared ApprovalPanel component</li>
-                <li>Reorganized WebView components into pages-based structure</li>
+                <li>Clarified project originality: all source code is designed and written from scratch</li>
+                <li>Documented CLI wrapper architecture (same approach as official VS Code extension)</li>
+                <li>Added service stabilization commitment and bug report turnaround policy</li>
+                <li>Adopted English as official common language for global collaboration</li>
+                <li>Updated all 7 README translations (EN, KO, JA, ZH, ES, DE, FR)</li>
             </ul>
         """.trimIndent()
     }

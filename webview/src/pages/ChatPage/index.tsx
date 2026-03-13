@@ -5,7 +5,9 @@ import { ChatMessageArea } from './ChatMessageArea';
 import { PermissionBanner } from './PermissionBanner';
 import { AskUserQuestionInputPanel } from './AskUserQuestionInputPanel';
 import { AcceptPlanPanel } from './AcceptPlanPanel';
+import { BannerArea } from './BannerArea';
 import { UpdateBanner } from './UpdateBanner';
+import { ConnectionLostBanner } from './ConnectionLostBanner';
 import { useChatInputFocus } from '../../contexts/ChatInputFocusContext';
 import { useChatStreamContext } from '../../contexts/ChatStreamContext';
 import { usePendingAskUserQuestion } from '../../hooks/usePendingAskUserQuestion';
@@ -54,7 +56,11 @@ export function ChatPage() {
       <div className="fixed w-full top-0 bg-blend-darken bg-neutral-900 z-10">
         <SessionHeader />
       </div>
-      <UpdateBanner />
+
+      <BannerArea>
+        <UpdateBanner />
+        <ConnectionLostBanner />
+      </BannerArea>
 
       {/* Messages Area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto w-full h-screen pt-10 bg-neutral-900 z-0" style={{ paddingBottom: bottomPadding }}>

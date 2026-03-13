@@ -23,30 +23,27 @@ export function UpdateBanner() {
   const title = latestNotes ? extractTitle(latestVersion, latestNotes) : '';
 
   return (
-    <>
-      <div className="fixed top-[36px] left-0 w-full z-20 border-t border-b border-blue-800 bg-blue-900/40 px-4 py-1.5 flex items-center">
+      <div className="w-full z-20 border-t border-b border-blue-800 bg-blue-900/40 px-4 py-1.5 flex items-center">
         <span className="text-white text-[11px]">
           <strong>v{latestVersion} released!</strong>
           {title && <span className="ml-2 text-blue-200 text-[10px]">{title}</span>}
         </span>
 
         <div className="ml-auto flex items-center gap-2">
-        {requiresRestart && <span className="ml-2 text-blue-200 text-[10px]">IDE restart required</span>}
+          {requiresRestart && <span className="ml-2 text-blue-200 text-[10px]">IDE restart required</span>}
           <button
-            onClick={handleUpdate}
-            className="px-3 py-1 rounded text-[10px] font-medium bg-white text-blue-700 hover:bg-blue-50 transition-colors"
+              onClick={handleUpdate}
+              className="px-3 py-1 rounded text-[10px] font-medium bg-white text-blue-700 hover:bg-blue-50 transition-colors"
           >
             Update
           </button>
           <button
-            onClick={skip}
-            className="px-3 py-1 rounded text-[10px] font-medium text-blue-100 hover:text-white hover:bg-blue-500 transition-colors"
+              onClick={skip}
+              className="px-3 py-1 rounded text-[10px] font-medium text-blue-100 hover:text-white hover:bg-blue-500 transition-colors"
           >
             Skip
           </button>
         </div>
       </div>
-      <div className="w-full h-[36px]"></div>
-    </>
   );
 }

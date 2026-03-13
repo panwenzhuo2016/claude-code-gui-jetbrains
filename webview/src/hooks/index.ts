@@ -8,3 +8,4 @@ export { useContext } from './useContext';
 export { useDocumentTitle } from './useDocumentTitle';
 export type { LoadedMessage } from './useChatStream';
 export type { AttachedContext } from './useContext';
+export { useTunnelStatus } from './useTunnelStatus';

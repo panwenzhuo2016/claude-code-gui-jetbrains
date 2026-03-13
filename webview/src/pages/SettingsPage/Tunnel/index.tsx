@@ -4,18 +4,21 @@ import { ClipboardDocumentIcon, ClipboardDocumentCheckIcon } from '@heroicons/re
 import { ToggleSwitch } from '@/components/ToggleSwitch';
 import { ROUTE_META, Route } from '@/router/routes';
 import { SettingSection, SettingRow } from '../common';
-import { useBridge } from '@/hooks/useBridge';
+import { useTunnelStatus } from '@/hooks';
 
 export function TunnelSettings() {
-  const { send, subscribe } = useBridge();
+  const {
+    tunnelEnabled,
+    tunnelUrl,
+    tunnelLoading,
+    preventSleep,
+    sleepLoading,
+    error,
+    handleTunnelToggle,
+    handleSleepToggle,
+  } = useTunnelStatus();
 
-  const [tunnelEnabled, setTunnelEnabled] = useState(false);
-  const [tunnelUrl, setTunnelUrl] = useState<string | null>(null);
-  const [tunnelLoading, setTunnelLoading] = useState(false);
-  const [preventSleep, setPreventSleep] = useState(false);
-  const [sleepLoading, setSleepLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -36,79 +39,12 @@ export function TunnelSettings() {
     };
   }, [tunnelLoading]);
 
-  useEffect(() => {
-    send('GET_TUNNEL_STATUS', {}).then((res) => {
-      const p = res.payload ?? res;
-      if (p.status === 'ok') {
-        setTunnelEnabled(p.tunnel.enabled);
-        setTunnelUrl(p.tunnel.url ?? null);
-        setPreventSleep(p.sleepGuard.enabled);
-      }
-    }).catch(() => {});
-  }, [send]);
-
-  useEffect(() => {
-    const unsubTunnel = subscribe('TUNNEL_STATUS', (msg) => {
-      const p = msg.payload as Record<string, unknown>;
-      setTunnelEnabled(p.enabled as boolean);
-      setTunnelUrl(p.url as string | null);
-      setTunnelLoading(false);
-    });
-    const unsubSleep = subscribe('SLEEP_GUARD_STATUS', (msg) => {
-      const p = msg.payload as Record<string, unknown>;
-      setPreventSleep(p.enabled as boolean);
-      setSleepLoading(false);
-    });
-    return () => { unsubTunnel(); unsubSleep(); };
-  }, [subscribe]);
-
   const handleCopy = () => {
     if (!tunnelUrl) return;
     navigator.clipboard.writeText(tunnelUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  };
-
-  const handleTunnelToggle = async (checked: boolean) => {
-    setError(null);
-    if (checked) {
-      setTunnelLoading(true);
-      try {
-        const res = await send('TUNNEL_START', { port: Number(window.location.port) || 80 });
-        if (res.payload.status === 'error') {
-          setError(res.payload.error as string);
-          setTunnelLoading(false);
-        }
-        // 성공 시 TUNNEL_STATUS 브로드캐스트로 상태 업데이트됨
-      } catch {
-        setTunnelLoading(false);
-      }
-    } else {
-      // 터널 끌 때 sleep guard도 자동 해제
-      if (preventSleep) {
-        await send('SLEEP_GUARD_DISABLE', {}).catch(() => {});
-      }
-      await send('TUNNEL_STOP', {}).catch(() => {});
-    }
-  };
-
-  const handleSleepToggle = async (checked: boolean) => {
-    setError(null);
-    if (checked) {
-      setSleepLoading(true);
-      try {
-        const res = await send('SLEEP_GUARD_ENABLE', {});
-        if (res.payload.status === 'error') {
-          setError(res.payload.error as string);
-          setSleepLoading(false);
-        }
-      } catch {
-        setSleepLoading(false);
-      }
-    } else {
-      await send('SLEEP_GUARD_DISABLE', {}).catch(() => {});
-    }
   };
 
   return (

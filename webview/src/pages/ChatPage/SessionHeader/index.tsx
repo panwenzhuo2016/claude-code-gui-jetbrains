@@ -1,6 +1,7 @@
 import { SessionDropdown } from './SessionDropdown';
 import { ProjectButton } from './ProjectButton';
 import { TokenBatteryButton } from './TokenBatteryButton';
+import { TunnelButton } from './TunnelButton';
 import { SettingsButton } from './SettingsButton';
 import { NewTabButton } from './NewTabButton';
 import { useDocumentTitle } from '@/hooks';
@@ -21,6 +22,7 @@ export function SessionHeader() {
       {/* Right: buttons */}
       <div className="flex items-center gap-1">
         <TokenBatteryButton />
+        <TunnelButton />
         <SettingsButton />
         <NewTabButton />
       </div>

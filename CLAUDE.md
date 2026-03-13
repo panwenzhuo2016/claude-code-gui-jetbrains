@@ -129,6 +129,10 @@ JetBrains Marketplace 배포 시 **Plugin Verifier**가 API 사용을 자동 검
 - `@ApiStatus.Internal`, `impl` 패키지 내 클래스는 절대 사용 금지
 - 배포 전 `./scripts/build.sh dist`로 빌드 후 Plugin Verifier 결과 반드시 확인
 
+## 로깅 시스템
+
+[logging.md](./logging.md) 참조.
+
 ## 작업 플랜
 
 작업을 시작하기 전에 `ignore/plan.md`를 반드시 읽고, 에이전트 지시문을 따를 것. 대화 중 "플랜 파일"이라 하면 이 파일을 의미한다. 사용자가 다음 작업을 물어본다면 이 플랜 파일을 기반으로 먼저 답변할 것.

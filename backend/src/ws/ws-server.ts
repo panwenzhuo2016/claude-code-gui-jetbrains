@@ -5,6 +5,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { ConnectionManager } from './connection-manager';
 import type { Bridge } from '../bridge/bridge-interface';
 import type { IPCMessage } from '../core/types';
+import { LogWebSocketServer } from '../logging/log-ws';
 
 const ALLOWED_WS_ORIGINS = new Set([
   'http://localhost',
@@ -24,6 +25,18 @@ function isImplicitlyAllowedOrigin(origin: string | undefined): boolean {
   return false;
 }
 
+/** Origin 검증 — /ws, /logs 공통 */
+function validateOrigin(origin: string | undefined): boolean {
+  if (isImplicitlyAllowedOrigin(origin)) return true;
+  try {
+    const url = new URL(origin!);
+    const normalized = `${url.protocol}//${url.hostname}`;
+    return ALLOWED_WS_ORIGINS.has(normalized);
+  } catch {
+    return false;
+  }
+}
+
 export type MessageHandler = (
   connectionId: string,
   message: IPCMessage,
@@ -35,6 +48,7 @@ interface WebSocketServerHandle {
   connections: ConnectionManager;
   close: () => void;
   port: number;
+  logWs?: LogWebSocketServer;
 }
 
 const MIME_TYPES: Record<string, string> = {
@@ -109,6 +123,7 @@ export function startWebSocketServer(
   bridge: Bridge,
   handleMessage: MessageHandler,
   webviewDir?: string,
+  logWs?: LogWebSocketServer,
 ): Promise<WebSocketServerHandle> {
   return new Promise<WebSocketServerHandle>((resolve, reject) => {
     const connections = new ConnectionManager();
@@ -154,36 +169,28 @@ export function startWebSocketServer(
       },
     );
 
-    // /ws 경로만 WebSocket으로 업그레이드 (Origin 검증 포함)
+    // /ws, /logs 경로 WebSocket 업그레이드 (Origin 검증 공통 적용)
     httpServer.on('upgrade', (request, socket, head) => {
-      if (request.url !== '/ws') {
+      const url = request.url;
+
+      // Origin 검증 — /ws, /logs 공통
+      const origin = request.headers.origin;
+      if (!validateOrigin(origin)) {
+        console.error('[node-backend]', `WebSocket connection rejected: disallowed origin "${origin}"`);
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
         socket.destroy();
         return;
       }
 
-      // Origin 검증 — localhost, file://, JCEF null origin만 허용
-      const origin = request.headers.origin;
-      if (!isImplicitlyAllowedOrigin(origin)) {
-        try {
-          const url = new URL(origin!);
-          const normalized = `${url.protocol}//${url.hostname}`;
-          if (!ALLOWED_WS_ORIGINS.has(normalized)) {
-            console.error('[node-backend]', `WebSocket connection rejected: disallowed origin "${origin}"`);
-            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-            socket.destroy();
-            return;
-          }
-        } catch {
-          console.error('[node-backend]', `WebSocket connection rejected: malformed origin "${origin}"`);
-          socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-          socket.destroy();
-          return;
-        }
+      if (url === '/ws') {
+        wss.handleUpgrade(request, socket, head, (ws: WebSocket) => {
+          wss.emit('connection', ws, request);
+        });
+      } else if (url === '/logs' && logWs) {
+        logWs.handleUpgrade(request, socket, head);
+      } else {
+        socket.destroy();
       }
-
-      wss.handleUpgrade(request, socket, head, (ws: WebSocket) => {
-        wss.emit('connection', ws, request);
-      });
     });
 
     httpServer.on('error', (err: NodeJS.ErrnoException) => {
@@ -198,7 +205,9 @@ export function startWebSocketServer(
       resolve({
         connections,
         port: assignedPort,
+        logWs,
         close: () => {
+          logWs?.close();
           wss.close();
           httpServer.close();
         },

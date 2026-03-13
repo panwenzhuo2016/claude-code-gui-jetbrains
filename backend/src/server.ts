@@ -5,6 +5,8 @@ import { JetBrainsBridge } from './bridge/jetbrains-bridge';
 import { handleMessage } from './core/handlers/index';
 import { watchClaudeSettingsFile, stopWatchingClaudeSettingsFile } from './core/features/claude-settings';
 import { isJetBrainsMode, serverPort, webviewDir } from './config/environment';
+import { initLogger, getLogger } from './logging';
+import { LogWebSocketServer } from './logging/log-ws';
 
 /**
  * JetBrains 모드: JETBRAINS_MODE=true 환경변수로 감지
@@ -48,9 +50,10 @@ function killProcessOnPort(port: number): void {
 
 async function startServerWithRetry(
   bridge: InstanceType<typeof BrowserBridge> | InstanceType<typeof JetBrainsBridge>,
+  logWs?: LogWebSocketServer,
 ): Promise<Awaited<ReturnType<typeof startWebSocketServer>>> {
   try {
-    return await startWebSocketServer(serverPort, bridge, handleMessage, webviewDir);
+    return await startWebSocketServer(serverPort, bridge, handleMessage, webviewDir, logWs);
   } catch (err: unknown) {
     const nodeErr = err as NodeJS.ErrnoException;
     if (nodeErr.code !== 'EADDRINUSE') throw err;
@@ -60,16 +63,30 @@ async function startServerWithRetry(
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    return await startWebSocketServer(serverPort, bridge, handleMessage, webviewDir);
+    return await startWebSocketServer(serverPort, bridge, handleMessage, webviewDir, logWs);
   }
 }
 
 async function main() {
+  // 1. Logger 즉시 초기화 (부트스트랩 로그도 파일에 기록)
+  const logger = initLogger();
+  await logger.init();
+  logger.interceptConsole();
+
   const bridge = isJetBrainsMode
     ? new JetBrainsBridge(process.stdout, process.stdin)
     : new BrowserBridge();
 
-  const { port, close, connections } = await startServerWithRetry(bridge);
+  // 2. LogWebSocketServer 생성
+  const logWs = new LogWebSocketServer((entries) => {
+    logger.handleWebViewLogs(entries);
+  });
+
+  // 3. 서버 시작 (logWs 전달)
+  const { port, close, connections } = await startServerWithRetry(bridge, logWs);
+
+  // 4. Logger에 LogWS 참조 설정
+  logger.setLogWs(logWs);
 
   if (isJetBrainsMode) {
     // PORT를 stdout 첫 줄에 출력 — Kotlin이 이를 읽고 JCEF에 http://localhost:PORT 를 로드
@@ -85,15 +102,20 @@ async function main() {
 
   // Start watching Claude settings file for external changes
   watchClaudeSettingsFile((settings) => {
-    console.log('[node-backend]', 'Broadcasting CLAUDE_SETTINGS_CHANGED event');
+    console.error('[node-backend]', 'Broadcasting CLAUDE_SETTINGS_CHANGED event');
     connections.broadcastToAll('CLAUDE_SETTINGS_CHANGED', { settings });
   });
 
-  function shutdown(signal: string) {
+  async function shutdown(signal: string) {
     console.error('[node-backend]', `${signal} received, shutting down...`);
     stopWatchingClaudeSettingsFile();
     connections.shutdownAll();
     close();
+
+    // 로그 스트림 flush 대기 (최대 5초)
+    const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
+    await Promise.race([getLogger().close(), timeoutPromise]);
+
     process.exit(0);
   }
 

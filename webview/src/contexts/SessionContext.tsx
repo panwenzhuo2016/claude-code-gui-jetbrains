@@ -5,6 +5,7 @@ import { SessionMetaDto } from '../dto';
 import { useBridgeContext } from './BridgeContext';
 import { useApi } from './ApiContext';
 import { getAdapter, onBridgeReady } from '../adapters';
+import { getLogForwarder } from '../api/logging';
 import { toTitle } from '../mappers/sessionTransformer';
 import { Route, routeToPath, sessionToPath, withWorkingDir } from '../router/routes';
 import { InputMode, MODE_CYCLE } from '../types/chatInput';
@@ -322,6 +323,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
       navigate(withWorkingDir(targetPath), { replace: true });
     }
   }, [location.pathname, navigate]);
+
+  // LogForwarder에 현재 세션 ID 동기화
+  useEffect(() => {
+    getLogForwarder()?.setSessionId(currentSessionId);
+  }, [currentSessionId]);
 
   const currentSession = useMemo(() => {
     return sessions.find(s => s.id === currentSessionId) ?? null;

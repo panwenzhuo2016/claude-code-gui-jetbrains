@@ -15,6 +15,10 @@ export default defineConfig({
         target: `ws://localhost:${backendPort}`,
         ws: true,
       },
+      '/logs': {
+        target: `ws://localhost:${backendPort}`,
+        ws: true,
+      },
     },
   },
   build: {

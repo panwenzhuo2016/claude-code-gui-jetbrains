@@ -7,3 +7,4 @@ export { AppProviders } from './AppProviders';
 export { SettingsProvider, useSettings, SettingsContext } from './SettingsContext';
 export { ClaudeSettingsProvider, useClaudeSettings, ClaudeSettingsContext } from './ClaudeSettingsContext';
 export { ChatInputFocusProvider, useChatInputFocus } from './ChatInputFocusContext';
+export { WorkingDirProvider, useWorkingDir } from './WorkingDirContext';

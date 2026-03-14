@@ -35,6 +35,8 @@ const mockSession = {
   sessionState: 'idle' as const,
   isLoading: false,
   workingDirectory: '/test',
+  inputMode: 'ask_before_edit' as const,
+  modeResetTrigger: 0,
   loadSessions: vi.fn(),
   resetToNewSession: vi.fn(),
   openNewTab: vi.fn(),
@@ -46,6 +48,10 @@ const mockSession = {
   setWorkingDirectory: vi.fn(),
   setCurrentSessionId: vi.fn(),
   addNewSession: vi.fn(),
+  setInputMode: vi.fn(),
+  cycleInputMode: vi.fn(),
+  syncInitialInputMode: vi.fn(),
+  registerBeforeSwitch: vi.fn(),
 };
 
 vi.mock('../contexts/SessionContext', () => ({

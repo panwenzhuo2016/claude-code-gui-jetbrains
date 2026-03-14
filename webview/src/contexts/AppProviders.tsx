@@ -9,6 +9,7 @@ import { Route, routeToPath, parseSessionIdFromPath, withWorkingDir } from '../r
 import { SettingsProvider } from './SettingsContext';
 import { ClaudeSettingsProvider } from './ClaudeSettingsContext';
 import { ChatInputFocusProvider } from './ChatInputFocusContext';
+import { WorkingDirProvider } from './WorkingDirContext';
 import { CommandPaletteProvider } from '../commandPalette/CommandPaletteProvider';
 import type { LoadedMessageDto } from '../types';
 
@@ -74,34 +75,37 @@ function SessionLoader({ children }: { children: ReactNode }) {
  * 1. BridgeProvider - Kotlin IPC bridge (foundation)
  * 2. BrowserRouter - react-router path-based routing
  * 3. ApiProvider - ClaudeCodeApi initialization (depends on Bridge)
- * 4. SessionProvider - Session management (depends on Bridge)
- * 5. ChatStreamProvider - Chat state + Streaming + Diffs + Tools (depends on Bridge + Session)
- * 6. CommandPaletteProvider - 슬래시 커맨드 매니저 (depends on ChatStream + Session)
- * 7. ClaudeSettingsProvider - Claude Code settings (~/.claude/settings.json) (depends on Bridge)
- * 8. SettingsProvider - IDE settings (terminal, theme, etc.) (depends on Bridge)
- * 9. ThemeProvider - Theme management (independent)
- * 10. SessionLoader - Auto-load sessions when bridge connects
+ * 4. WorkingDirProvider - Working directory management (depends on Bridge + Api)
+ * 5. SessionProvider - Session management (depends on Bridge + WorkingDir)
+ * 6. ChatStreamProvider - Chat state + Streaming + Diffs + Tools (depends on Bridge + Session)
+ * 7. CommandPaletteProvider - Slash command manager (depends on ChatStream + Session)
+ * 8. ClaudeSettingsProvider - Claude Code settings (~/.claude/settings.json) (depends on Bridge)
+ * 9. SettingsProvider - IDE settings (terminal, theme, etc.) (depends on Bridge)
+ * 10. ThemeProvider - Theme management (depends on Settings)
+ * 11. SessionLoader - Auto-load sessions when bridge connects
  */
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <BridgeProvider>
       <BrowserRouter>
         <ApiProvider>
-          <SessionProvider>
-            <ChatStreamProvider>
-              <CommandPaletteProvider>
-                <ClaudeSettingsProvider>
-                  <SettingsProvider>
-                    <ThemeProvider>
-                      <ChatInputFocusProvider>
-                        <SessionLoader>{children}</SessionLoader>
-                      </ChatInputFocusProvider>
-                    </ThemeProvider>
-                  </SettingsProvider>
-                </ClaudeSettingsProvider>
-              </CommandPaletteProvider>
-            </ChatStreamProvider>
-          </SessionProvider>
+          <WorkingDirProvider>
+            <SessionProvider>
+              <ChatStreamProvider>
+                <CommandPaletteProvider>
+                  <ClaudeSettingsProvider>
+                    <SettingsProvider>
+                      <ThemeProvider>
+                        <ChatInputFocusProvider>
+                          <SessionLoader>{children}</SessionLoader>
+                        </ChatInputFocusProvider>
+                      </ThemeProvider>
+                    </SettingsProvider>
+                  </ClaudeSettingsProvider>
+                </CommandPaletteProvider>
+              </ChatStreamProvider>
+            </SessionProvider>
+          </WorkingDirProvider>
         </ApiProvider>
       </BrowserRouter>
     </BridgeProvider>

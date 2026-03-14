@@ -4,6 +4,7 @@ import { SessionState } from '../types';
 import { SessionMetaDto } from '../dto';
 import { useBridgeContext } from './BridgeContext';
 import { useApi } from './ApiContext';
+import { useWorkingDir } from './WorkingDirContext';
 import { getAdapter, onBridgeReady } from '../adapters';
 import { getLogForwarder } from '../api/logging';
 import { toTitle } from '../mappers/sessionTransformer';
@@ -51,7 +52,8 @@ interface SessionProviderProps {
 }
 
 export function SessionProvider({ children }: SessionProviderProps) {
-  const { subscribe, send, isConnected } = useBridgeContext();
+  const { subscribe, isConnected } = useBridgeContext();
+  const { workingDirectory, setWorkingDirectory } = useWorkingDir();
   const api = useApi();
   const navigate = useNavigate();
   const location = useLocation();
@@ -92,35 +94,6 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
   }, []);
 
-  const [workingDirectory, setWorkingDirectoryState] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('workingDir') || null;
-  });
-
-  // Update API workingDir when it changes
-  const setWorkingDirectory = useCallback((dir: string | null) => {
-    setWorkingDirectoryState(dir);
-    if (dir) {
-      api.setWorkingDir(dir);
-      // Update URL with workingDir parameter
-      const url = new URL(window.location.href);
-      url.searchParams.set('workingDir', dir);
-      window.history.replaceState({}, '', url.toString());
-    } else {
-      // Remove workingDir parameter if null
-      const url = new URL(window.location.href);
-      url.searchParams.delete('workingDir');
-      window.history.replaceState({}, '', url.toString());
-    }
-  }, [api]);
-
-  // Initialize API workingDir on mount
-  useEffect(() => {
-    if (workingDirectory) {
-      api.setWorkingDir(workingDirectory);
-    }
-  }, [api, workingDirectory]);
-
   // JetBrains에서 kotlinBridgeReady 이벤트 후 IDE adapter 재초기화
   useEffect(() => {
     const handleBridgeReady = () => {
@@ -130,21 +103,6 @@ export function SessionProvider({ children }: SessionProviderProps) {
     window.addEventListener('kotlinBridgeReady', handleBridgeReady);
     return () => window.removeEventListener('kotlinBridgeReady', handleBridgeReady);
   }, []);
-
-  // workingDir가 없는 상태로 연결되면 백엔드에서 process.cwd()를 가져옴
-  // 단, 루트 경로(/)에서는 프로젝트 선택 화면이므로 자동 복원하지 않음
-  useEffect(() => {
-    if (!isConnected || workingDirectory || location.pathname === '/') return;
-
-    send('GET_WORKING_DIR', {}).then((payload: { workingDir: string }) => {
-      if (payload?.workingDir) {
-        setWorkingDirectory(payload.workingDir);
-      }
-    }).catch((error: unknown) => {
-      console.error('[SessionContext] Failed to get working directory:', error);
-    });
-  }, [isConnected, workingDirectory, location.pathname, send, setWorkingDirectory]);
-
 
   // loadSessions - using new API
   const loadSessions = useCallback(async () => {

@@ -54,7 +54,7 @@ interface SessionProviderProps {
 }
 
 export function SessionProvider({ children }: SessionProviderProps) {
-  const { subscribe, isConnected } = useBridgeContext();
+  const { subscribe, send, isConnected } = useBridgeContext();
   const { workingDirectory, setWorkingDirectory } = useWorkingDir();
   const { settings: claudeSettings } = useClaudeSettings();
   const api = useApi();
@@ -71,6 +71,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   // 세션 전환 전 호출되는 콜백 (ChatStreamContext가 등록)
   const beforeSwitchRef = useRef<(() => void) | null>(null);
+  // 재연결 감지용 — 이전 연결 상태 추적 (결함 B+C 수정)
+  const prevConnectedRef = useRef(false);
   const registerBeforeSwitch = useCallback((cb: () => void) => {
     beforeSwitchRef.current = cb;
   }, []);
@@ -111,6 +113,19 @@ export function SessionProvider({ children }: SessionProviderProps) {
     window.addEventListener('kotlinBridgeReady', handleBridgeReady);
     return () => window.removeEventListener('kotlinBridgeReady', handleBridgeReady);
   }, []);
+
+  // WebSocket 재연결 시 현재 세션 재구독 (결함 B+C 수정)
+  // JCEF 탭 전환으로 연결이 끊겼다 복구되면 새 connectionId로 SESSION_CHANGE를 전송해
+  // 백엔드가 해당 연결을 올바른 세션에 구독시키도록 한다.
+  useEffect(() => {
+    if (isConnected && !prevConnectedRef.current && currentSessionId) {
+      send('SESSION_CHANGE', { sessionId: currentSessionId }).catch((error: unknown) => {
+        console.error('[SessionContext] Failed to resubscribe session on reconnect:', error);
+      });
+      console.log('[SessionContext] Resubscribed to session on reconnect:', currentSessionId);
+    }
+    prevConnectedRef.current = isConnected;
+  }, [isConnected, currentSessionId, send]);
 
   // Navigation helpers
   const navigateToSession = useCallback((sessionId: string) => {

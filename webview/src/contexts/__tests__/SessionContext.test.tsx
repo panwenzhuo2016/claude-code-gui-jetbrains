@@ -60,10 +60,16 @@ vi.mock('../WorkingDirContext', () => ({
 }));
 
 // Mock react-router-dom
-const mockNavigate = vi.fn();
+let mockPathname = '/';
+const mockNavigate = vi.fn((path: string, _options?: unknown) => {
+  if (typeof path === 'string') {
+    // Strip query string for pathname tracking
+    mockPathname = path.split('?')[0];
+  }
+});
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
-  useLocation: () => ({ pathname: '/' }),
+  useLocation: () => ({ pathname: mockPathname }),
 }));
 
 // Test data
@@ -102,6 +108,7 @@ function TestConsumer({ onMount }: TestConsumerProps) {
 describe('SessionContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPathname = '/';
     mockIsConnected = true;
     mockWorkingDirectory = '/test/workspace';
     mockSessionsIndex.mockResolvedValue([]);
@@ -174,8 +181,11 @@ describe('SessionContext', () => {
     });
 
     expect(mockSessionsLoad).toHaveBeenCalledWith('session-1');
+    expect(mockNavigate).toHaveBeenCalledWith(
+      expect.stringContaining('/sessions/session-1'),
+      expect.objectContaining({ replace: true })
+    );
     await waitFor(() => {
-      expect(capturedCtx?.currentSessionId).toBe('session-1');
       expect(capturedCtx?.sessionState).toBe('idle');
     });
   });
@@ -200,6 +210,7 @@ describe('SessionContext', () => {
     });
 
     expect(mockSessionsLoad).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
     expect(capturedCtx!.currentSessionId).toBeNull();
   });
 
@@ -254,8 +265,11 @@ describe('SessionContext', () => {
     });
 
     expect(mockSessionsDestroy).toHaveBeenCalledWith('session-1');
+    expect(mockNavigate).toHaveBeenLastCalledWith(
+      expect.stringContaining('/sessions/new'),
+      expect.objectContaining({ replace: true })
+    );
     await waitFor(() => {
-      expect(capturedCtx?.currentSessionId).toBeNull();
       expect(capturedCtx?.sessionState).toBe('idle');
     });
   });

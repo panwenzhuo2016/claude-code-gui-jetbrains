@@ -1,11 +1,10 @@
 import { ReactNode, useEffect, useRef } from 'react';
-import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { BridgeProvider, useBridgeContext } from './BridgeContext';
 import { ApiProvider, useApiContext } from './ApiContext';
 import { SessionProvider, useSessionContext } from './SessionContext';
 import { ChatStreamProvider, useChatStreamContext } from './ChatStreamContext';
 import { ThemeProvider } from './ThemeContext';
-import { Route, routeToPath, parseSessionIdFromPath, withWorkingDir } from '../router/routes';
 import { SettingsProvider } from './SettingsContext';
 import { ClaudeSettingsProvider } from './ClaudeSettingsContext';
 import { ChatInputFocusProvider } from './ChatInputFocusContext';
@@ -19,17 +18,19 @@ interface AppProvidersProps {
 
 /**
  * SessionLoader - loadSessions를 bridge 연결 시점에 호출
+ *
+ * currentSessionId is derived from URL (SSOT) in SessionContext.
+ * This component only handles:
+ * 1. Loading sessions on connect
+ * 2. Restoring session from URL on initial load
+ * 3. Subscribing to SESSION_LOADED events
  */
 function SessionLoader({ children }: { children: ReactNode }) {
   const { isConnected } = useApiContext();
   const { subscribe } = useBridgeContext();
-  const { loadSessions, switchSession, sessions, currentSessionId } = useSessionContext();
+  const { loadSessions, switchSession, sessions, currentSessionId, navigateToNewSession } = useSessionContext();
   const { loadMessages } = useChatStreamContext();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const urlSessionRestored = useRef(false);
-
-  const sessionIdFromUrl = parseSessionIdFromPath(location.pathname);
+  const sessionRestored = useRef(false);
 
   useEffect(() => {
     if (isConnected) {
@@ -38,20 +39,21 @@ function SessionLoader({ children }: { children: ReactNode }) {
     }
   }, [isConnected, loadSessions]);
 
-  // URL에 sessionId가 있으면 세션 목록 로드 후 해당 세션으로 전환
+  // URL에 sessionId가 있으면 세션 목록 로드 후 해당 세션의 메시지를 로드
+  // currentSessionId is already derived from URL — just need to load messages
   useEffect(() => {
-    if (urlSessionRestored.current || !sessionIdFromUrl || sessions.length === 0 || currentSessionId) return;
+    if (sessionRestored.current || !currentSessionId || sessions.length === 0) return;
 
-    urlSessionRestored.current = true;
-    const sessionExists = sessions.some(s => s.id === sessionIdFromUrl);
+    sessionRestored.current = true;
+    const sessionExists = sessions.some(s => s.id === currentSessionId);
     if (sessionExists) {
-      console.log('[AppProviders] Restoring session from URL:', sessionIdFromUrl);
-      switchSession(sessionIdFromUrl);
+      console.log('[AppProviders] Restoring session from URL:', currentSessionId);
+      switchSession(currentSessionId);
     } else {
-      console.warn('[AppProviders] Session from URL not found, falling back to new session:', sessionIdFromUrl);
-      navigate(withWorkingDir(routeToPath(Route.NEW_SESSION)), { replace: true });
+      console.warn('[AppProviders] Session from URL not found, falling back to new session:', currentSessionId);
+      navigateToNewSession();
     }
-  }, [sessionIdFromUrl, sessions, currentSessionId, switchSession, navigate]);
+  }, [currentSessionId, sessions, switchSession, navigateToNewSession]);
 
   // Subscribe to SESSION_LOADED to load messages into chat
   // Raw JSONL entries are passed through - transformation is handled by useChatStream.loadMessages()

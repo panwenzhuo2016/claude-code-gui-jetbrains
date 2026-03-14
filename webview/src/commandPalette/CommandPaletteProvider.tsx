@@ -68,7 +68,7 @@ export function CommandPaletteProvider({ children }: CommandPaletteProviderProps
       currentSessionId: session.currentSessionId,
       sessionState: session.sessionState,
       workingDirectory: session.workingDirectory,
-      setCurrentSessionId: session.setCurrentSessionId,
+
       setSessionState: session.setSessionState,
       resetToNewSession: session.resetToNewSession,
     },
@@ -98,7 +98,7 @@ export function CommandPaletteProvider({ children }: CommandPaletteProviderProps
       currentSessionId: session.currentSessionId,
       sessionState: session.sessionState,
       workingDirectory: session.workingDirectory,
-      setCurrentSessionId: session.setCurrentSessionId,
+
       setSessionState: session.setSessionState,
       resetToNewSession: session.resetToNewSession,
     },

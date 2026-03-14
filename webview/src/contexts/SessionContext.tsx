@@ -8,12 +8,12 @@ import { useWorkingDir } from './WorkingDirContext';
 import { getAdapter, onBridgeReady } from '../adapters';
 import { getLogForwarder } from '../api/logging';
 import { toTitle } from '../mappers/sessionTransformer';
-import { Route, routeToPath, sessionToPath, withWorkingDir } from '../router/routes';
+import { Route, routeToPath, sessionToPath, parseSessionIdFromPath, withWorkingDir } from '../router/routes';
 import { InputMode, MODE_CYCLE } from '../types/chatInput';
 
 
 interface SessionContextValue {
-  // State
+  // State (currentSessionId is derived from URL — single source of truth)
   currentSessionId: string | null;
   currentSession: SessionMetaDto | null;
   sessions: SessionMetaDto[];
@@ -31,7 +31,8 @@ interface SessionContextValue {
   modeResetTrigger: number;
 
   // Actions
-  setCurrentSessionId: (sessionId: string | null) => void;
+  navigateToSession: (sessionId: string) => void;
+  navigateToNewSession: () => void;
   loadSessions: () => Promise<void>;
   resetToNewSession: () => void;
   openNewTab: () => void;
@@ -58,7 +59,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  // currentSessionId is derived from URL (SSOT)
+  const currentSessionId = parseSessionIdFromPath(location.pathname);
+
   const [sessions, setSessions] = useState<SessionMetaDto[]>([]);
   const [sessionState, setSessionState] = useState<SessionState>(SessionState.Idle);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +106,15 @@ export function SessionProvider({ children }: SessionProviderProps) {
     window.addEventListener('kotlinBridgeReady', handleBridgeReady);
     return () => window.removeEventListener('kotlinBridgeReady', handleBridgeReady);
   }, []);
+
+  // Navigation helpers
+  const navigateToSession = useCallback((sessionId: string) => {
+    navigate(withWorkingDir(sessionToPath(sessionId)), { replace: true });
+  }, [navigate]);
+
+  const navigateToNewSession = useCallback(() => {
+    navigate(withWorkingDir(routeToPath(Route.NEW_SESSION)), { replace: true });
+  }, [navigate]);
 
   // loadSessions - using new API
   const loadSessions = useCallback(async () => {
@@ -177,27 +189,19 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   const resetToNewSession = useCallback(() => {
     beforeSwitchRef.current?.();
-    setCurrentSessionId(null);
     setSessionState(SessionState.Idle);
     hasUserChangedMode.current = false;
     setModeResetTrigger(c => c + 1);
 
-    // URL을 /sessions/new로 복원
-    const targetPath = routeToPath(Route.NEW_SESSION);
-    if (location.pathname !== targetPath) {
-      navigate(withWorkingDir(targetPath), { replace: true });
-    }
+    // URL change is the SSOT — navigating IS the session reset
+    navigateToNewSession();
 
     api.sessions.create().catch(error => {
       console.error('[SessionContext] Failed to clear CLI session:', error);
     });
-  }, [api.sessions, location.pathname, navigate]);
+  }, [api.sessions, navigateToNewSession]);
 
   const openNewTab = useCallback(() => {
-    // Use IDE adapter to open new tab
-    // - JetBrains: Opens new editor tab via Kotlin bridge
-    // - Browser: Opens new browser tab via window.open()
-    // Note: Does NOT reset local state - current tab keeps its messages
     getAdapter().openNewTab().catch(error => {
       console.error('[SessionContext] Failed to open new tab:', error);
     });
@@ -216,19 +220,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
       // 동기적으로 이전 세션 상태를 먼저 리셋 (레이스 컨디션 방지)
       beforeSwitchRef.current?.();
 
-      setCurrentSessionId(sessionId);
       setSessionState(SessionState.Idle);
       hasUserChangedMode.current = false;
       setModeResetTrigger(c => c + 1);
 
-      // URL 동기화 (순환 방지: 현재 pathname과 비교)
-      const targetPath = sessionToPath(sessionId);
-      if (location.pathname !== targetPath) {
-        navigate(withWorkingDir(targetPath), { replace: true });
-      }
+      // URL change is the SSOT — navigating IS the session switch
+      navigateToSession(sessionId);
 
       try {
-        // Triggers SESSION_LOADED event → AppProviders.SessionLoader handles message injection
         await api.sessions.load(sessionId);
         console.log('[SessionContext] Session load requested:', sessionId);
       } catch (error) {
@@ -237,30 +236,27 @@ export function SessionProvider({ children }: SessionProviderProps) {
     } else {
       console.warn('[SessionContext] Session not found in list:', sessionId);
     }
-  }, [sessions, api.sessions, location.pathname, navigate]);
+  }, [sessions, api.sessions, navigateToSession]);
 
   const deleteSession = useCallback(async (sessionId: string) => {
     try {
       await api.sessions.destroy(sessionId);
       setSessions(prev => prev.filter(s => s.id !== sessionId));
       if (currentSessionId === sessionId) {
-        setCurrentSessionId(null);
         setSessionState(SessionState.Idle);
-        navigate(withWorkingDir(routeToPath(Route.NEW_SESSION)), { replace: true });
+        navigateToNewSession();
       }
     } catch (error) {
       console.error('[SessionContext] Failed to delete session:', error);
     }
-  }, [currentSessionId, api.sessions, navigate]);
+  }, [currentSessionId, api.sessions, navigateToNewSession]);
 
   const renameSession = useCallback((sessionId: string, title: string) => {
-    // Update local state only - CLI sessions are read-only
     setSessions(prev => prev.map(s =>
       s.id === sessionId
         ? { ...s, title, updatedAt: new Date() }
         : s
     ));
-    // Note: CLI session titles cannot be modified from the plugin
   }, []);
 
   const addNewSession = useCallback((sessionId: string, firstPrompt: string) => {
@@ -275,12 +271,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
     });
     setSessions(prev => [newSession, ...prev]);
 
-    // 새 세션 생성 시 URL 갱신
-    const targetPath = sessionToPath(sessionId);
-    if (location.pathname !== targetPath) {
-      navigate(withWorkingDir(targetPath), { replace: true });
-    }
-  }, [location.pathname, navigate]);
+    // URL change is the SSOT — navigating IS the session creation
+    navigateToSession(sessionId);
+  }, [navigateToSession]);
 
   // LogForwarder에 현재 세션 ID 동기화
   useEffect(() => {
@@ -303,7 +296,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
     cycleInputMode,
     syncInitialInputMode,
     modeResetTrigger,
-    setCurrentSessionId,
+    navigateToSession,
+    navigateToNewSession,
     loadSessions,
     resetToNewSession,
     openNewTab,

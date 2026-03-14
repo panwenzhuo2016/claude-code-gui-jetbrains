@@ -28,7 +28,6 @@ export interface CommandPaletteServices {
     currentSessionId: string | null;
     sessionState: SessionState;
     workingDirectory: string | null;
-    setCurrentSessionId: (id: string | null) => void;
     setSessionState: (state: SessionState) => void;
     resetToNewSession: () => void;
   };

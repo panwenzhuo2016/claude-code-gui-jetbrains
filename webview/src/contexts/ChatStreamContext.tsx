@@ -196,7 +196,6 @@ export function ChatStreamProvider({ children }: ChatStreamProviderProps) {
       const isNewSession = !sessionId;
       if (!sessionId) {
         sessionId = crypto.randomUUID();
-        session.setCurrentSessionId(sessionId);
         session.addNewSession(sessionId, content);
         console.log('[ChatStreamContext] New session created:', sessionId);
       }

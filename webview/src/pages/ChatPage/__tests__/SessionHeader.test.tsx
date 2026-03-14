@@ -37,6 +37,11 @@ vi.mock('../../../contexts/BridgeContext', () => ({
   }),
 }));
 
+// Mock react-router-dom (ProjectButton uses useNavigate)
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+}));
+
 beforeEach(() => {
   mockSwitchSession.mockReset();
   mockLoadSessions.mockReset();

@@ -5,7 +5,7 @@ import { SessionState } from '@/types';
 import { isBrowser } from '@/config/environment';
 
 export function ProjectButton() {
-  const { sessionState, setCurrentSessionId, setSessionState, setWorkingDirectory } = useSessionContext();
+  const { sessionState, setSessionState, setWorkingDirectory } = useSessionContext();
   const navigate = useNavigate();
 
   if (!isBrowser()) return null;
@@ -14,7 +14,6 @@ export function ProjectButton() {
     sessionState === SessionState.Streaming || sessionState === SessionState.WaitingPermission;
 
   const handleClick = () => {
-    setCurrentSessionId(null);
     setSessionState(SessionState.Idle);
     setWorkingDirectory(null);
     navigate('/');

@@ -3,6 +3,9 @@
 import type { Connector, ConnectionChangeHandler } from './Connector';
 import { WebSocketConnector } from './WebSocketConnector';
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+export const LOGIN_REQUEST_TIMEOUT_MS = 300_000;
+
 type MessageHandler = (message: IPCMessage) => void;
 
 interface PendingRequest {
@@ -82,7 +85,7 @@ export class Bridge {
    *
    * 연결 미완료 시 connector.ensureReady()로 대기.
    */
-  async request<T = any>(type: string, payload: Record<string, unknown> = {}): Promise<T> {
+  async request<T = any>(type: string, payload: Record<string, unknown> = {}, options?: { timeout?: number }): Promise<T> {
     const requestId = this.generateRequestId();
     const message: IPCMessage = {
       type,
@@ -104,8 +107,9 @@ export class Bridge {
       }
     }
 
+    const timeoutMs = options?.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
+
     return new Promise<T>((resolve, reject) => {
-      // 30초 타임아웃
       const timeoutId = setTimeout(() => {
         if (this.pending.has(requestId)) {
           this.pending.delete(requestId);
@@ -113,7 +117,7 @@ export class Bridge {
           console.error('[Bridge] Request timeout:', requestId, type);
           reject(error);
         }
-      }, 30000);
+      }, timeoutMs);
 
       this.pending.set(requestId, { resolve, reject, timeoutId });
 

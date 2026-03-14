@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowLeftIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useRouter } from '@/router';
 import { Route, ROUTE_META, Label } from '@/router/routes';
-import { getBridge } from '@/api/bridge/Bridge';
+import { getBridge, LOGIN_REQUEST_TIMEOUT_MS } from '@/api/bridge/Bridge';
 import { getAdapter } from '@/adapters';
 import { useSessionContext } from '@/contexts/SessionContext';
 
@@ -31,6 +31,7 @@ export function SwitchAccountPage(props: Props) {
       const result = await getBridge().request<{ requestId: string; status: string; error?: string }>(
         'LOGIN',
         { method },
+        { timeout: LOGIN_REQUEST_TIMEOUT_MS },
       );
 
       if (result?.status === 'ok') {

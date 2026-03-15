@@ -106,18 +106,19 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.11.1 - JCEF Popup Handling</h3>
+            <h3>0.11.2 - WebSocket RPC, Math Rendering & Project Settings</h3>
             <ul>
-                <li>Fixed JCEF popup interception to prevent unwanted browser windows from external links</li>
-                <li>Cached runtime detection for improved startup performance</li>
-            </ul>
-            <h3>0.11.0 - Remote Tunnel & Connection Resilience</h3>
-            <ul>
-                <li>Added remote tunnel support via cloudflared (auto-install, QR code, URL copy)</li>
-                <li>Added sleep prevention to keep machine awake while tunnel is active</li>
-                <li>Added tunnel button in session header with quick-access modal</li>
-                <li>Added connection lost banner with automatic internet/backend disconnect detection</li>
-                <li>Simplified sleep guard by using caffeinate (no admin privileges required on macOS)</li>
+                <li>Added LaTeX math rendering support via KaTeX</li>
+                <li>Migrated RPC from stdio to WebSocket with auto-recovery</li>
+                <li>Added project-scoped settings with Global/Project tabs</li>
+                <li>Improved tunnel URL with current path and query params</li>
+                <li>Fixed Windows ENOENT and login timeout for Claude CLI</li>
+                <li>Fixed Windows support for killProcessOnPort</li>
+                <li>Fixed infinite thinking when opening new editor tab</li>
+                <li>Fixed first user message being wiped in new sessions</li>
+                <li>Fixed backend restart on panel reopen after idle shutdown</li>
+                <li>Fixed session resubscription on WebSocket reconnect</li>
+                <li>Fixed file path click during streaming</li>
             </ul>
         """.trimIndent()
     }

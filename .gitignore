@@ -42,6 +42,7 @@ webview/vite.config.js
 
 # Claude Code / OMC
 .claude/
+.claude-code-gui/
 .omc/
 .taskmaster/
 

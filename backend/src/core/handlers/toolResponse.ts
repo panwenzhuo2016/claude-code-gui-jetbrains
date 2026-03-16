@@ -3,6 +3,16 @@ import type { Bridge } from '../../bridge/bridge-interface';
 import type { IPCMessage } from '../types';
 import { sendToolResultToProcess, sendControlResponseToProcess } from '../claude-process';
 
+/** WebView -> Backend TOOL_RESPONSE payload */
+interface ToolResponsePayload {
+  toolUseId: string;
+  approved: boolean;
+  controlRequestId?: string;
+  updatedInput?: Record<string, unknown>;
+  reason?: string;
+  result?: string;
+}
+
 export function toolResponseHandler(
   connectionId: string,
   message: IPCMessage,
@@ -18,9 +28,10 @@ export function toolResponseHandler(
     return;
   }
 
-  const toolUseId = message.payload?.toolUseId as string;
-  const approved = (message.payload?.approved as boolean) ?? true;
-  const controlRequestId = message.payload?.controlRequestId as string | undefined;
+  const payload = message.payload as ToolResponsePayload | undefined;
+  const toolUseId = payload?.toolUseId ?? '';
+  const approved = payload?.approved ?? true;
+  const controlRequestId = payload?.controlRequestId;
 
   if (controlRequestId) {
     // AskUserQuestion: control_response 프로토콜
@@ -28,15 +39,15 @@ export function toolResponseHandler(
       subtype: 'success' as const,
       request_id: controlRequestId,
       response: approved
-        ? { behavior: 'allow', updatedInput: message.payload?.updatedInput }
-        : { behavior: 'deny', message: (message.payload?.reason as string) || 'User declined to answer' },
+        ? { behavior: 'allow', updatedInput: payload?.updatedInput ?? {} }
+        : { behavior: 'deny', message: payload?.reason || 'User declined to answer' },
     };
     sendControlResponseToProcess(connections, sessionId, response);
     console.error('[node-backend]', `CONTROL_RESPONSE sent for request ${controlRequestId} (approved: ${approved})`);
   } else {
     // 일반 tool permission: tool_result 방식
     const resultContent =
-      (message.payload?.result as string) ||
+      payload?.result ||
       (approved ? 'Tool execution approved' : 'Tool execution rejected');
 
     const toolResult = {

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useApi } from '@/contexts/ApiContext';
 import { getBridgeClient } from '@/api/bridge/BridgeClient';
 import { useSessionContext } from '@/contexts/SessionContext';
+import type { CliControlRequestEvent } from '@/types';
 
 export type PermissionRiskLevel = 'low' | 'medium' | 'high';
 
@@ -79,7 +80,7 @@ export function usePendingPermissions(): UsePendingPermissionsReturn {
   useEffect(() => {
     const bridge = getBridgeClient();
     const unsubscribe = bridge.subscribe('CLI_EVENT', (message) => {
-      const cliEvent = message.payload as any;
+      const cliEvent = message.payload as CliControlRequestEvent | undefined;
       if (cliEvent?.type !== 'control_request') return;
 
       const request = cliEvent?.request;
@@ -100,7 +101,7 @@ export function usePendingPermissions(): UsePendingPermissionsReturn {
       // 세션 허용된 툴이면 자동 승인
       if (sessionPermissionsRef.current.has(toolName)) {
         processedIdsRef.current.add(controlRequestId);
-        apiRef.current.tools.approve(toolUseId, controlRequestId);
+        apiRef.current.tools.approve(toolUseId, controlRequestId, input);
         return;
       }
 
@@ -121,7 +122,7 @@ export function usePendingPermissions(): UsePendingPermissionsReturn {
     if (!req) return;
 
     processedIdsRef.current.add(controlRequestId);
-    api.tools.approve(req.toolUseId, controlRequestId);
+    api.tools.approve(req.toolUseId, controlRequestId, req.input);
     setRequests(prev => prev.filter(r => r.controlRequestId !== controlRequestId));
   }, [requests, api.tools]);
 
@@ -133,7 +134,7 @@ export function usePendingPermissions(): UsePendingPermissionsReturn {
     sessionPermissionsRef.current.add(req.toolName);
 
     processedIdsRef.current.add(controlRequestId);
-    api.tools.approve(req.toolUseId, controlRequestId);
+    api.tools.approve(req.toolUseId, controlRequestId, req.input);
     setRequests(prev => prev.filter(r => r.controlRequestId !== controlRequestId));
   }, [requests, api.tools]);
 

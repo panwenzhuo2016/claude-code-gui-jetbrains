@@ -233,3 +233,4 @@ export * from './settings';
 export * from './attachment';
 export * from './models';
 export * from './effort';
+export * from './cli-events';

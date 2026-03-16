@@ -20,11 +20,16 @@ export class ToolsApi {
   /**
    * Approve a tool use request
    */
-  async approve(toolUseId: string, controlRequestId?: string): Promise<void> {
+  async approve(
+    toolUseId: string,
+    controlRequestId?: string,
+    updatedInput?: Record<string, unknown>,
+  ): Promise<void> {
     await this.bridge.request('TOOL_RESPONSE', {
       toolUseId,
       approved: true,
       ...(controlRequestId && { controlRequestId }),
+      ...(updatedInput && { updatedInput }),
     });
   }
 

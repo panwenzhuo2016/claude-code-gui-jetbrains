@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useApi } from '@/contexts/ApiContext';
 import { getBridgeClient } from '@/api/bridge/BridgeClient';
+import type { CliControlRequestEvent } from '@/types';
 
 export interface PendingPlanApproval {
   controlRequestId: string;
   toolUseId: string;
+  input: Record<string, unknown>;
 }
 
 export function usePendingPlanApproval(): {
@@ -20,7 +22,7 @@ export function usePendingPlanApproval(): {
   useEffect(() => {
     const bridge = getBridgeClient();
     const unsubscribe = bridge.subscribe('CLI_EVENT', (message) => {
-      const cliEvent = message.payload as any;
+      const cliEvent = message.payload as CliControlRequestEvent | undefined;
       if (cliEvent?.type !== 'control_request') return;
 
       const request = cliEvent?.request;
@@ -32,10 +34,11 @@ export function usePendingPlanApproval(): {
 
       const controlRequestId = cliEvent.request_id as string;
       const toolUseId = request.tool_use_id as string;
+      const input = (request.input || {}) as Record<string, unknown>;
 
       if (!controlRequestId || processedIdsRef.current.has(controlRequestId)) return;
 
-      setRequests(prev => [...prev, { controlRequestId, toolUseId }]);
+      setRequests(prev => [...prev, { controlRequestId, toolUseId, input }]);
     });
     return unsubscribe;
   }, []);
@@ -46,7 +49,7 @@ export function usePendingPlanApproval(): {
 
     processedIdsRef.current.add(controlRequestId);
 
-    api.tools.approve(req.toolUseId, controlRequestId);
+    api.tools.approve(req.toolUseId, controlRequestId, req.input);
     setRequests(prev => prev.filter(r => r.controlRequestId !== controlRequestId));
   }, [requests, api.tools]);
 

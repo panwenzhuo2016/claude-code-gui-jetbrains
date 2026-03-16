@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback, useEffect } from 'react';
 import { LoadedMessageDto } from '@/types';
 import { LoadedMessageType, ToolUseBlockDto } from '@/dto';
 import { getBridgeClient } from '@/api/bridge/BridgeClient';
+import type { CliControlRequestEvent } from '@/types';
 
 interface AskUserQuestionOption {
   label: string;
@@ -38,7 +39,7 @@ export function usePendingAskUserQuestion(
   useEffect(() => {
     const bridge = getBridgeClient();
     const unsubscribe = bridge.subscribe('CLI_EVENT', (message) => {
-      const cliEvent = message.payload as any;
+      const cliEvent = message.payload as CliControlRequestEvent | undefined;
       if (cliEvent?.type !== 'control_request') return;
 
       const request = cliEvent?.request;

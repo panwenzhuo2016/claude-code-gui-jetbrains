@@ -100,7 +100,11 @@ See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ## Contributing
 
-Contributions are welcome. Please open an issue first to discuss larger changes.
+Contributions of all kinds are welcome — bug reports, feature ideas, code, documentation, and translations.
+
+- **Getting started?** See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
+- **Looking for something to work on?** Check issues labeled [`good first issue`](https://github.com/yhk1038/claude-code-gui-jetbrains/labels/good%20first%20issue).
+- **Have a larger change in mind?** Please [open an issue](https://github.com/yhk1038/claude-code-gui-jetbrains/issues) first to discuss.
 
 ## License
 

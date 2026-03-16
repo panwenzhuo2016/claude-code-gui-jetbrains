@@ -258,10 +258,9 @@ export function startTunnel(port: number): Promise<string> {
           const foundUrl = match[0];
           tunnelUrl = foundUrl;
           if (proc.pid) savePidFile(proc.pid);
-          // Wait for Cloudflare edge to actually serve the tunnel
-          waitForTunnelReady(foundUrl).then(() => {
-            resolvePromise(foundUrl);
-          });
+          resolvePromise(foundUrl);
+          // Fire-and-forget: wait for Cloudflare edge readiness in background
+          waitForTunnelReady(foundUrl).catch(() => {});
         }
       } catch {
         // file not ready yet

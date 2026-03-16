@@ -56,8 +56,8 @@ export function useTunnelStatus(): TunnelStatus {
       setTunnelLoading(true);
       try {
         const res = await send('TUNNEL_START', { port: Number(window.location.port) || 80 });
-        if (res.payload.status === 'error') {
-          setError(res.payload.error as string);
+        if (res.status === 'error') {
+          setError(res.error as string);
           setTunnelLoading(false);
         }
       } catch {
@@ -77,8 +77,8 @@ export function useTunnelStatus(): TunnelStatus {
       setSleepLoading(true);
       try {
         const res = await send('SLEEP_GUARD_ENABLE', {});
-        if (res.payload.status === 'error') {
-          setError(res.payload.error as string);
+        if (res.status === 'error') {
+          setError(res.error as string);
           setSleepLoading(false);
         }
       } catch {

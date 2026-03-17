@@ -20,7 +20,7 @@ export function SessionHeader() {
       </div>
 
       {/* Right: buttons */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-shrink-0">
         <TokenBatteryButton />
         <TunnelButton />
         <SettingsButton />

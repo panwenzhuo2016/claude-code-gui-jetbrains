@@ -51,7 +51,7 @@ export function SessionDropdown() {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative min-w-0" ref={dropdownRef}>
       <DropdownToggle
         sessionTitle={sessionTitle}
         isOpen={isOpen}

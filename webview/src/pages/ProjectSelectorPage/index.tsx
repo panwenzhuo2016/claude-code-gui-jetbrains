@@ -110,7 +110,7 @@ export function ProjectSelectorPage() {
           {projects.map((project) => (
             <button
               key={project.path}
-              onClick={() => setWorkingDirectory(project.path)}
+              onClick={() => setWorkingDirectory(project.path, { replace: false })}
               className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition-colors border-b border-zinc-800 last:border-b-0 group"
             >
               <div className="flex items-center justify-between gap-2">

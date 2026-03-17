@@ -42,6 +42,30 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
 }));
 
+// Mock WorkingDirContext (ProjectButton uses useWorkingDir)
+vi.mock('../../../contexts/WorkingDirContext', () => ({
+  useWorkingDir: () => ({
+    workingDirectory: '/test',
+    setWorkingDirectory: vi.fn(),
+  }),
+}));
+
+// Mock ChatStreamContext (TokenBatteryButton → useUsageData → useChatStreamContext)
+vi.mock('../../../contexts/ChatStreamContext', () => ({
+  useChatStreamContext: () => ({
+    messages: [],
+    isStreaming: false,
+    error: null,
+    streamingMessageId: null,
+    input: '',
+    setInput: vi.fn(),
+    handleSubmit: vi.fn(),
+    sendMessage: vi.fn(),
+    stop: vi.fn(),
+    continue: vi.fn(),
+  }),
+}));
+
 beforeEach(() => {
   mockSwitchSession.mockReset();
   mockLoadSessions.mockReset();

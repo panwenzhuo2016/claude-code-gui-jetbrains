@@ -15,7 +15,7 @@ export function ProjectButton() {
 
   const handleClick = () => {
     setSessionState(SessionState.Idle);
-    setWorkingDirectory(null);
+    setWorkingDirectory(null, { replace: !isBrowser() });
   };
 
   return (

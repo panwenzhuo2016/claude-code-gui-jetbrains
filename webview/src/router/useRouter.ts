@@ -1,11 +1,10 @@
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { Route, pathToRoute, routeToPath, isSettingsRoute, sessionToPath, withWorkingDir } from './routes';
+import { Route, pathToRoute, routeToPath, isSettingsRoute, withWorkingDir } from './routes';
 
 export interface UseRouterReturn {
   route: Route;
   params: Record<string, string>;
   navigate: (route: Route, params?: Record<string, string>) => void;
-  navigateToSession: (sessionId: string) => void;
   goBack: () => void;
   isSettings: boolean;
 }
@@ -24,10 +23,6 @@ export function useRouter(): UseRouterReturn {
     nav(withWorkingDir(routeToPath(resolved)));
   };
 
-  const navigateToSession = (sessionId: string) => {
-    nav(withWorkingDir(sessionToPath(sessionId)));
-  };
-
   const goBack = () => {
     nav(-1);
   };
@@ -36,7 +31,6 @@ export function useRouter(): UseRouterReturn {
     route,
     params: routeParams as Record<string, string>,
     navigate,
-    navigateToSession,
     goBack,
     isSettings: isSettingsRoute(route),
   };

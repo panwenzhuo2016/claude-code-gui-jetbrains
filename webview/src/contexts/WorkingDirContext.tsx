@@ -1,12 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import {NavigateOptions, useNavigate, useSearchParams} from 'react-router-dom';
 import { useBridgeContext } from '@/contexts/BridgeContext';
 import { useApi } from '@/contexts/ApiContext';
 import { Route, routeToPath, withWorkingDir } from '@/router/routes';
 
 interface WorkingDirContextValue {
   workingDirectory: string | null;
-  setWorkingDirectory: (dir: string | null) => void;
+  setWorkingDirectory: (dir: string | null, options?: NavigateOptions) => void;
 }
 
 const WorkingDirContext = createContext<WorkingDirContextValue | null>(null);
@@ -25,17 +25,17 @@ export function WorkingDirProvider(props: Props) {
   const [searchParams] = useSearchParams();
   const workingDirectory = searchParams.get(WORKING_DIR_PARAM_KEY) || null;
 
-  const setWorkingDirectory = useCallback((dir: string | null) => {
+  const setWorkingDirectory = useCallback((dir: string | null, options: NavigateOptions = {}) => {
     const isOnProjectSelector = window.location.pathname === routeToPath(Route.PROJECT_SELECTOR);
 
     // "Project Select Page" with workingDir params => redirect new session page.
     if (isOnProjectSelector && dir) {
-      navigate(withWorkingDir(routeToPath(Route.NEW_SESSION), dir), { replace: true });
+      navigate(withWorkingDir(routeToPath(Route.NEW_SESSION), dir), options);
     }
 
     // "Other pages" without workingDir params => redirect "Project Select Page".
     if (!isOnProjectSelector && !dir) {
-      navigate(routeToPath(Route.PROJECT_SELECTOR), { replace: true });
+      navigate(routeToPath(Route.PROJECT_SELECTOR), { replace: true, ...options });
     }
   }, [navigate]);
 

@@ -36,6 +36,7 @@ export enum IconName {
  * 인라인 문자열 사용 금지 - 모든 경로는 이 enum으로 참조
  */
 export enum Route {
+  PROJECT_SELECTOR = '',
   NEW_SESSION = 'sessions/new',
   SESSION = 'sessions/:current_session_id',
   SETTINGS = 'settings',
@@ -63,6 +64,11 @@ export interface RouteMeta {
  * 라우트별 통합 메타데이터
  */
 export const ROUTE_META: Record<Route, RouteMeta> = {
+  [Route.PROJECT_SELECTOR]: {
+    path: '/',
+    label: 'Select Project',
+    icon: null,
+  },
   [Route.NEW_SESSION]: {
     path: '/sessions/new',
     label: 'New Session',

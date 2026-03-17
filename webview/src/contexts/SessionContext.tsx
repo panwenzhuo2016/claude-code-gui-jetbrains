@@ -180,7 +180,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       setIsLoading(true);
       console.log('[SessionContext] Loading sessions from:', workingDirectory);
 
-      const sessions = await api.sessions.index().then((sessions) => {
+      const sessions = await api.sessions.index(workingDirectory).then((sessions) => {
         return sessions
           .filter(s => !s.isSidechain)
           .sort((a, b) => {

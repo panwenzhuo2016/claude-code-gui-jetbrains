@@ -33,11 +33,11 @@ export class SessionsApi {
    * List all sessions
    * GET /sessions
    */
-  async index(): Promise<SessionMetaDto[]> {
-    const { workingDir } = this.getConfig();
+  async index(workingDir?: string): Promise<SessionMetaDto[]> {
+    const dir = workingDir ?? this.getConfig().workingDir;
     const response = await this.bridge.request<GetSessionsResponse>(
       'GET_SESSIONS',
-      { workingDir }
+      { workingDir: dir }
     );
 
     if (!response?.sessions || !Array.isArray(response.sessions)) {
@@ -52,9 +52,9 @@ export class SessionsApi {
    * Triggers SESSION_LOADED event which AppProviders.SessionLoader handles
    * POST /sessions/:id/load
    */
-  async load(sessionId: string): Promise<void> {
-    const { workingDir } = this.getConfig();
-    await this.bridge.request('LOAD_SESSION', { sessionId, workingDir });
+  async load(sessionId: string, workingDir?: string): Promise<void> {
+    const dir = workingDir ?? this.getConfig().workingDir;
+    await this.bridge.request('LOAD_SESSION', { sessionId, workingDir: dir });
   }
 
   /**
@@ -86,8 +86,8 @@ export class SessionsApi {
    * Kills the existing process and reloads session messages
    * POST /sessions/:id/reclaim
    */
-  async reclaim(sessionId: string): Promise<void> {
-    const { workingDir } = this.getConfig();
-    await this.bridge.request('RECLAIM_SESSION', { sessionId, workingDir });
+  async reclaim(sessionId: string, workingDir?: string): Promise<void> {
+    const dir = workingDir ?? this.getConfig().workingDir;
+    await this.bridge.request('RECLAIM_SESSION', { sessionId, workingDir: dir });
   }
 }

@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useBridgeContext } from '@/contexts/BridgeContext';
-import { useApi } from '@/contexts/ApiContext';
+import {createContext, ReactNode, useCallback, useContext, useEffect} from 'react';
+import {useNavigate, useSearchParams} from 'react-router-dom';
+import {useBridgeContext} from '@/contexts/BridgeContext';
+import {useApi} from '@/contexts/ApiContext';
+import {Route, routeToPath, withWorkingDir} from '@/router/routes';
 
 interface WorkingDirContextValue {
   workingDirectory: string | null;
@@ -14,46 +15,37 @@ interface Props {
   children: ReactNode;
 }
 
+export const WORKING_DIR_PARAM_KEY = 'workingDir';
+
 export function WorkingDirProvider(props: Props) {
   const { children } = props;
   const { isConnected } = useBridgeContext();
   const api = useApi();
-  const location = useLocation();
-
-  const [workingDirectory, setWorkingDirectoryState] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('workingDir') || null;
-  });
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const workingDirectory = searchParams.get(WORKING_DIR_PARAM_KEY) || null;
 
   const setWorkingDirectory = useCallback((dir: string | null) => {
-    setWorkingDirectoryState(dir);
-    if (dir) {
-      api.setWorkingDir(dir);
-      const url = new URL(window.location.href);
-      url.searchParams.set('workingDir', dir);
-      window.history.replaceState({}, '', url.toString());
-    } else {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('workingDir');
-      window.history.replaceState({}, '', url.toString());
-    }
-  }, [api]);
+    const currentDir = new URLSearchParams(window.location.search).get(WORKING_DIR_PARAM_KEY);
+    if (dir === currentDir) return;
 
-  // Initialize API workingDir on mount
+    const target = dir
+      ? withWorkingDir(routeToPath(Route.NEW_SESSION), dir)
+      : routeToPath(Route.PROJECT_SELECTOR);
+    navigate(target, { replace: true });
+  }, [navigate]);
+
+  // Routing guard: ensure workingDir and pathname are consistent
+  useEffect(() => {
+    if (isConnected) setWorkingDirectory(workingDirectory);
+  }, [isConnected, workingDirectory, setWorkingDirectory]);
+
+  // Sync workingDir to API whenever it changes
   useEffect(() => {
     if (workingDirectory) {
       api.setWorkingDir(workingDirectory);
     }
   }, [api, workingDirectory]);
-
-  // Single-process mode: no default workingDir from backend.
-  // If no workingDir in URL params, redirect to project selector.
-  useEffect(() => {
-    if (!isConnected || workingDirectory || location.pathname === '/') return;
-
-    // No workingDir available — navigate to project selector
-    window.location.href = '/';
-  }, [isConnected, workingDirectory, location.pathname]);
 
   const value: WorkingDirContextValue = {
     workingDirectory,

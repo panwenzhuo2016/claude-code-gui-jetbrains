@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MarqueeText } from './MarqueeText';
-import { useBridgeContext } from '../../contexts/BridgeContext';
-import { useSessionContext } from '../../contexts/SessionContext';
-import { withWorkingDir } from '@/router/routes';
+import {useEffect, useState} from 'react';
+import {MarqueeText} from './MarqueeText';
+import {useBridgeContext} from '../../contexts/BridgeContext';
+import {useWorkingDir} from "@/contexts";
 
 interface Project {
   name: string;
@@ -17,8 +15,7 @@ export function ProjectSelectorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { send, isConnected, subscribe } = useBridgeContext();
-  const { setWorkingDirectory } = useSessionContext();
-  const navigate = useNavigate();
+  const { setWorkingDirectory } = useWorkingDir();
 
   useEffect(() => {
     if (!isConnected) {
@@ -48,11 +45,6 @@ export function ProjectSelectorPage() {
 
     fetchProjects();
   }, [isConnected, send, subscribe]);
-
-  const handleSelectProject = (path: string) => {
-    setWorkingDirectory(path);
-    navigate(withWorkingDir('/sessions/new', path));
-  };
 
   if (isLoading) {
     return (
@@ -118,7 +110,7 @@ export function ProjectSelectorPage() {
           {projects.map((project) => (
             <button
               key={project.path}
-              onClick={() => handleSelectProject(project.path)}
+              onClick={() => setWorkingDirectory(project.path)}
               className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition-colors border-b border-zinc-800 last:border-b-0 group"
             >
               <div className="flex items-center justify-between gap-2">

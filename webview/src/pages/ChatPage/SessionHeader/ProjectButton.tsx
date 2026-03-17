@@ -1,12 +1,12 @@
 import { FolderIcon } from '@heroicons/react/24/outline';
-import { useNavigate } from 'react-router-dom';
 import { useSessionContext } from '@/contexts/SessionContext';
+import { useWorkingDir } from '@/contexts/WorkingDirContext';
 import { SessionState } from '@/types';
 import { isBrowser } from '@/config/environment';
 
 export function ProjectButton() {
-  const { sessionState, setSessionState, setWorkingDirectory } = useSessionContext();
-  const navigate = useNavigate();
+  const { sessionState, setSessionState } = useSessionContext();
+  const { setWorkingDirectory } = useWorkingDir();
 
   if (!isBrowser()) return null;
 
@@ -16,7 +16,6 @@ export function ProjectButton() {
   const handleClick = () => {
     setSessionState(SessionState.Idle);
     setWorkingDirectory(null);
-    navigate('/');
   };
 
   return (

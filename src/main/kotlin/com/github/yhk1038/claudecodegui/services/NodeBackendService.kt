@@ -2,10 +2,12 @@ package com.github.yhk1038.claudecodegui.services
 
 import com.github.yhk1038.claudecodegui.bridge.NodeProcessManager
 import com.github.yhk1038.claudecodegui.bridge.RpcWebSocketClient
+import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.extensions.PluginId
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -163,11 +165,27 @@ class NodeBackendService : Disposable {
     private fun startBackend() {
         // Check if a Node.js process is already running on the default port
         if (isBackendAlreadyRunning(DEFAULT_PORT)) {
-            logger.info("Reusing existing Node.js backend on port $DEFAULT_PORT")
-            portDeferred = CompletableDeferred()
-            portDeferred.complete(DEFAULT_PORT)
-            connectRpcWebSocket(DEFAULT_PORT)
-            return
+            val backendVersion = getBackendVersion(DEFAULT_PORT)
+            val pluginVersion = getPluginVersion()
+
+            val shouldReplace = when {
+                backendVersion == null -> true  // No /version endpoint → pre-upgrade backend
+                pluginVersion == null -> false  // Can't determine plugin version → safe to reuse
+                else -> isVersionLower(backendVersion, pluginVersion)
+            }
+
+            if (shouldReplace) {
+                logger.info("Replacing stale backend (backend=$backendVersion, plugin=$pluginVersion)")
+                killProcessOnPort(DEFAULT_PORT)
+                Thread.sleep(500)
+                // Fall through to spawn a new process below
+            } else {
+                logger.info("Reusing existing Node.js backend on port $DEFAULT_PORT (backend=$backendVersion, plugin=$pluginVersion)")
+                portDeferred = CompletableDeferred()
+                portDeferred.complete(DEFAULT_PORT)
+                connectRpcWebSocket(DEFAULT_PORT)
+                return
+            }
         }
 
         portDeferred = CompletableDeferred()
@@ -237,6 +255,90 @@ class NodeBackendService : Disposable {
     }
 
     /**
+     * Query the running backend's version via HTTP GET /version.
+     * Returns the version string (e.g. "0.11.5") or null if unreachable.
+     */
+    private fun getBackendVersion(port: Int): String? {
+        return try {
+            val url = java.net.URI("http://127.0.0.1:$port/version").toURL()
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 2000
+            conn.readTimeout = 2000
+            conn.requestMethod = "GET"
+            val code = conn.responseCode
+            if (code == 200) {
+                val body = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+                Regex(""""version"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
+            } else {
+                conn.disconnect()
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Get the current plugin version from the IDE's plugin descriptor.
+     */
+    private fun getPluginVersion(): String? {
+        return PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID))?.version
+    }
+
+    /**
+     * Compare two semver strings. Returns true if [version] < [than].
+     */
+    private fun isVersionLower(version: String, than: String): Boolean {
+        val v1 = version.split(".").map { it.toIntOrNull() ?: 0 }
+        val v2 = than.split(".").map { it.toIntOrNull() ?: 0 }
+        val maxLen = maxOf(v1.size, v2.size)
+        for (i in 0 until maxLen) {
+            val a = v1.getOrElse(i) { 0 }
+            val b = v2.getOrElse(i) { 0 }
+            if (a < b) return true
+            if (a > b) return false
+        }
+        return false
+    }
+
+    /**
+     * Kill any process listening on the given port.
+     */
+    private fun killProcessOnPort(port: Int) {
+        try {
+            val os = System.getProperty("os.name").lowercase()
+            if (os.contains("win")) {
+                val output = ProcessBuilder("cmd", "/c", "netstat -ano | findstr :$port")
+                    .start().inputStream.bufferedReader().readText().trim()
+                val pids = output.lines()
+                    .mapNotNull { it.trim().split("\\s+".toRegex()).lastOrNull()?.toIntOrNull() }
+                    .filter { it > 0 }
+                    .toSet()
+                pids.forEach { pid ->
+                    ProcessBuilder("taskkill", "/F", "/PID", pid.toString())
+                        .start().waitFor(3, java.util.concurrent.TimeUnit.SECONDS)
+                }
+            } else {
+                val pids = ProcessBuilder("lsof", "-ti", ":$port")
+                    .start().inputStream.bufferedReader().readText().trim()
+                if (pids.isNotEmpty()) {
+                    pids.split("\n").forEach { pidStr ->
+                        val pid = pidStr.trim().toIntOrNull()
+                        if (pid != null && pid > 0) {
+                            ProcessBuilder("kill", "-9", pid.toString())
+                                .start().waitFor(3, java.util.concurrent.TimeUnit.SECONDS)
+                        }
+                    }
+                }
+            }
+            logger.info("Killed stale backend process on port $port")
+        } catch (e: Exception) {
+            logger.warn("Failed to kill process on port $port", e)
+        }
+    }
+
+    /**
      * Check if a Node.js backend is already listening on the given port.
      * Any valid HTTP response (2xx–4xx) indicates a running server.
      */
@@ -269,6 +371,7 @@ class NodeBackendService : Disposable {
 
     companion object {
         const val DEFAULT_PORT = 19836
+        private const val PLUGIN_ID = "com.github.yhk1038.claude-code-gui"
 
         fun getInstance(): NodeBackendService =
             ApplicationManager.getApplication().getService(NodeBackendService::class.java)

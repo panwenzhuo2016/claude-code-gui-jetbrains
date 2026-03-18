@@ -4,6 +4,16 @@ import { useVersionInfo } from './useVersionInfo';
 
 const SKIPPED_VERSION_KEY = 'claude-code-gui:skipped-version';
 
+function isNewerVersion(latest: string, current: string): boolean {
+  const l = latest.split('.').map(Number);
+  const c = current.split('.').map(Number);
+  for (let i = 0; i < Math.max(l.length, c.length); i++) {
+    if ((l[i] ?? 0) > (c[i] ?? 0)) return true;
+    if ((l[i] ?? 0) < (c[i] ?? 0)) return false;
+  }
+  return false;
+}
+
 function getSkippedVersion(): string | null {
   try {
     return localStorage.getItem(SKIPPED_VERSION_KEY);
@@ -39,7 +49,7 @@ export function useUpdateAvailable(): UseUpdateAvailableReturn {
   const hasUpdate = useMemo(() => {
     if (!latestUpdate) return false;
     if (!pluginVersion || pluginVersion === '...' || pluginVersion === 'unknown') return false;
-    if (latestUpdate.version === pluginVersion) return false;
+    if (!isNewerVersion(latestUpdate.version, pluginVersion)) return false;
     if (latestUpdate.version === skippedVersion) return false;
     return true;
   }, [latestUpdate, pluginVersion, skippedVersion]);

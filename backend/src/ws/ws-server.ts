@@ -5,6 +5,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { ConnectionManager } from './connection-manager';
 import type { Bridge } from '../bridge/bridge-interface';
 import type { IPCMessage } from '../core/types';
+import { getPluginVersion } from '../core/handlers/getVersion';
 import { LogWebSocketServer } from '../logging/log-ws';
 
 const ALLOWED_WS_ORIGINS = new Set([
@@ -166,6 +167,14 @@ export function startWebSocketServer(
 
     const httpServer: Server = createServer(
       async (req: IncomingMessage, res: ServerResponse) => {
+        const urlPath = (req.url ?? '/').split('?')[0];
+
+        if (urlPath === '/version') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ version: getPluginVersion() }));
+          return;
+        }
+
         if (webviewDir) {
           await serveStaticFile(webviewDir, req.url ?? '/', res);
         } else {

@@ -9,7 +9,7 @@ import { resolve, dirname } from 'path';
 
 declare const __PLUGIN_VERSION__: string;
 
-function getPluginVersion(): string {
+export function getPluginVersion(): string {
   // In bundled build (esbuild), __PLUGIN_VERSION__ is statically replaced with a string literal.
   // In unbundled dev mode (tsx, ts-node), it remains undeclared → typeof returns 'undefined'.
   if (typeof __PLUGIN_VERSION__ !== 'undefined') {

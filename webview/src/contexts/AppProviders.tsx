@@ -82,9 +82,10 @@ function SessionLoader({ children }: { children: ReactNode }) {
     });
 
     // Clear previous session state (messages, streaming, tools, diffs)
-    // Skip reset for newly created sessions — their first user message was just
-    // added by sendMessage and must be preserved; the state is already clean.
-    if (!(currentSessionId && isNewlyCreatedSession(currentSessionId))) {
+    // Skip reset for:
+    // - Newly created sessions: first user message was just added by sendMessage
+    // - Reconnections: loadMessages will overwrite; clearing first causes flicker
+    if (!reconnected && !(currentSessionId && isNewlyCreatedSession(currentSessionId))) {
       resetForSessionSwitch();
     }
     setSessionState(SessionState.Idle);

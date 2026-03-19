@@ -24,4 +24,11 @@ class ClaudeCodeEditorManagerListener : FileEditorManagerListener {
         EditorTabStateService.getInstance(project).removeTab(file.sessionId)
         ClaudeCodeBrowserService.getInstance(project).release(file.sessionId)
     }
+
+    override fun selectionChanged(event: com.intellij.openapi.fileEditor.FileEditorManagerEvent) {
+        val file = event.newFile
+        if (file is ClaudeCodeVirtualFile && file.badgeState == TabBadge.UNREAD) {
+            file.setBadge(TabBadge.NONE)
+        }
+    }
 }

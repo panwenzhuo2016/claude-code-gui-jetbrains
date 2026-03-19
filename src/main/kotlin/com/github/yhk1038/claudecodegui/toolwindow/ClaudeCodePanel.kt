@@ -70,6 +70,10 @@ class ClaudeCodePanel(
         get() = holder.onPathChanged
         set(value) { holder.onPathChanged = value }
 
+    var onStreamingStateChanged: ((Boolean) -> Unit)?
+        get() = holder.onStreamingStateChanged
+        set(value) { holder.onStreamingStateChanged = value }
+
     private val panelId = UUID.randomUUID().toString()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -179,7 +183,17 @@ class ClaudeCodePanel(
 
             override fun onTitleChange(browser: CefBrowser?, title: String?) {
                 if (title != null && title.isNotBlank()) {
-                    holder.onTitleChanged?.invoke(title)
+                    val tabIndex = title.indexOf('\t')
+                    if (tabIndex >= 0) {
+                        val displayTitle = title.substring(0, tabIndex)
+                        val state = title.substring(tabIndex + 1)
+                        if (displayTitle.isNotBlank()) {
+                            holder.onTitleChanged?.invoke(displayTitle)
+                        }
+                        holder.onStreamingStateChanged?.invoke(state == "streaming")
+                    } else {
+                        holder.onTitleChanged?.invoke(title)
+                    }
                 }
             }
 

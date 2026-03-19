@@ -7,6 +7,11 @@ import java.util.Collections
 import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 
+enum class TabBadge {
+    NONE,
+    UNREAD
+}
+
 class ClaudeCodeVirtualFile(
     val sessionId: String,
     val initialPath: String? = null
@@ -19,6 +24,18 @@ class ClaudeCodeVirtualFile(
     // WebView가 현재 표시 중인 경로 (탭 이동 시 복원용)
     @Volatile
     var currentPath: String? = initialPath
+
+    // Tab badge state for unread notification dot
+    @Volatile
+    var badgeState: TabBadge = TabBadge.NONE
+        private set
+
+    fun setBadge(badge: TabBadge) {
+        if (badgeState == badge) return
+        badgeState = badge
+        // Trigger tab icon refresh by notifying a property change
+        VirtualFileManager.getInstance().notifyPropertyChanged(this, PROP_NAME, name, name)
+    }
 
     companion object {
         private const val MAX_DISPLAY_NAME_LENGTH = 20

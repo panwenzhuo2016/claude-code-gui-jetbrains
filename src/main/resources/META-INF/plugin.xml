@@ -60,6 +60,10 @@
         <!-- WebView resource server -->
         <httpRequestHandler
             implementation="com.github.yhk1038.claudecodegui.toolwindow.WebViewRequestHandler"/>
+
+        <!-- Tab icon badge for unread streaming completions -->
+        <fileIconPatcher
+            implementation="com.github.yhk1038.claudecodegui.editor.ClaudeCodeFileIconPatcher"/>
     </extensions>
 
     <!-- Clean up session state only on real tab close (not on tab move/split) -->

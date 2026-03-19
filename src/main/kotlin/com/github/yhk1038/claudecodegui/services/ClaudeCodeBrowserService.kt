@@ -35,6 +35,9 @@ class ClaudeCodeBrowserService(private val project: Project) : Disposable {
         /** Callback for WebView URL path changes (set by ClaudeCodePanel, consumed by handlers). */
         var onPathChanged: ((String) -> Unit)? = null
 
+        /** Callback for WebView streaming state changes (set by ClaudeCodePanel, consumed by ClaudeCodeFileEditor). */
+        var onStreamingStateChanged: ((isStreaming: Boolean) -> Unit)? = null
+
         /** Whether the WebView URL has been loaded at least once. */
         var isLoaded: Boolean = false
 

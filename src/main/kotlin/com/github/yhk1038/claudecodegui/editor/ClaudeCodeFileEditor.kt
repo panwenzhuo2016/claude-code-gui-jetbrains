@@ -3,6 +3,7 @@ package com.github.yhk1038.claudecodegui.editor
 import com.github.yhk1038.claudecodegui.toolwindow.ClaudeCodePanel
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorLocation
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorState
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -22,6 +23,9 @@ class ClaudeCodeFileEditor(
         virtualFile.currentPath ?: virtualFile.initialPath
     )
 
+    @Volatile
+    private var wasStreaming: Boolean = false
+
     init {
         Disposer.register(this, panel)
 
@@ -34,6 +38,21 @@ class ClaudeCodeFileEditor(
         panel.onPathChanged = { path ->
             virtualFile.currentPath = path
         }
+
+        // Streaming state change: show unread badge when streaming ends on inactive tab
+        panel.onStreamingStateChanged = { isStreaming ->
+            if (!isStreaming && wasStreaming) {
+                if (!isTabActive()) {
+                    virtualFile.setBadge(TabBadge.UNREAD)
+                }
+            }
+            wasStreaming = isStreaming
+        }
+    }
+
+    private fun isTabActive(): Boolean {
+        val fem = FileEditorManager.getInstance(project)
+        return fem.selectedEditors.any { it === this }
     }
 
     override fun getComponent(): JComponent = panel

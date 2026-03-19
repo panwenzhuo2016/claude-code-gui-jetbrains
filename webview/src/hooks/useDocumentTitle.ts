@@ -12,8 +12,10 @@ function setFavicon(href: string) {
 
 /**
  * Hook to update the document title based on the current session and streaming state.
- * Encodes streaming state into the title using a tab character separator.
- * Format: "{title}\t{state}" where state is "streaming" | "idle"
+ *
+ * Streaming state is communicated to the JetBrains IDE via a JCEF JS bridge
+ * (`window.__notifyStreamingState`), NOT via document.title encoding
+ * (Chromium normalizes tab characters in titles, breaking delimiter-based parsing).
  *
  * Also swaps the browser favicon to an unread variant when streaming ends
  * while the tab is hidden, and restores it when the tab becomes visible.
@@ -23,10 +25,16 @@ export function useDocumentTitle(title: string | null, isStreaming: boolean) {
   const hasUnreadRef = useRef(false);
 
   useEffect(() => {
-    const displayTitle = title || 'Claude Code';
-    const state = isStreaming ? 'streaming' : 'idle';
-    document.title = `${displayTitle}\t${state}`;
-  }, [title, isStreaming]);
+    document.title = title || 'Claude Code';
+  }, [title]);
+
+  // Notify JCEF of streaming state changes
+  useEffect(() => {
+    const notify = (window as unknown as Record<string, unknown>).__notifyStreamingState;
+    if (typeof notify === 'function') {
+      (notify as (state: string) => void)(isStreaming ? 'streaming' : 'idle');
+    }
+  }, [isStreaming]);
 
   // Detect streaming end while tab is hidden → show unread favicon
   useEffect(() => {

@@ -28,6 +28,7 @@ class ClaudeCodeBrowserService(private val project: Project) : Disposable {
     class BrowserHolder(
         val browser: JBCefBrowser,
         val cursorQuery: JBCefJSQuery,
+        val streamingQuery: JBCefJSQuery,
     ) {
         /** Callback for WebView title changes (set by ClaudeCodePanel, consumed by handlers). */
         var onTitleChanged: ((String) -> Unit)? = null
@@ -59,7 +60,8 @@ class ClaudeCodeBrowserService(private val project: Project) : Disposable {
             logger.info("Creating new JCEF browser for session: $sessionId")
             val browser = JBCefBrowser()
             val cursorQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
-            BrowserHolder(browser, cursorQuery)
+            val streamingQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
+            BrowserHolder(browser, cursorQuery, streamingQuery)
         }
     }
 
@@ -70,6 +72,7 @@ class ClaudeCodeBrowserService(private val project: Project) : Disposable {
     fun release(sessionId: String) {
         holders.remove(sessionId)?.let { holder ->
             logger.info("Releasing JCEF browser for session: $sessionId")
+            try { Disposer.dispose(holder.streamingQuery) } catch (_: Exception) {}
             try { Disposer.dispose(holder.cursorQuery) } catch (_: Exception) {}
             try { Disposer.dispose(holder.browser) } catch (_: Exception) {}
         }
@@ -77,6 +80,7 @@ class ClaudeCodeBrowserService(private val project: Project) : Disposable {
 
     override fun dispose() {
         holders.values.forEach { holder ->
+            try { Disposer.dispose(holder.streamingQuery) } catch (_: Exception) {}
             try { Disposer.dispose(holder.cursorQuery) } catch (_: Exception) {}
             try { Disposer.dispose(holder.browser) } catch (_: Exception) {}
         }

@@ -59,6 +59,7 @@ class ClaudeCodePanel(
     private val holder = browserService.getOrCreate(sessionId)
     private val browser: JBCefBrowser = holder.browser
     private val cursorQuery: JBCefJSQuery = holder.cursorQuery
+    private val streamingQuery: JBCefJSQuery = holder.streamingQuery
 
     // Title/path change callbacks delegated to BrowserHolder
     // so handlers installed on first panel creation can reach the latest panel's callbacks.
@@ -153,7 +154,13 @@ class ClaudeCodePanel(
             JBCefJSQuery.Response(null)
         }
 
-        // Inject cursor tracking script on page load
+        // Handle streaming state changes from WebView
+        streamingQuery.addHandler { state: String ->
+            holder.onStreamingStateChanged?.invoke(state == "streaming")
+            JBCefJSQuery.Response(null)
+        }
+
+        // Inject scripts on page load
         browser.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
             override fun onLoadEnd(browser: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
                 if (frame.isMain) {
@@ -161,6 +168,7 @@ class ClaudeCodePanel(
                     // the JetBrains environment and select JetBrainsAdapter over BrowserAdapter.
                     frame.executeJavaScript("window.__JCEF__ = true;", frame.url, 0)
                     injectCursorTracking(frame)
+                    injectStreamingStateBridge(frame)
                     installImeWorkaround()
                     logger.info("WebView loaded successfully")
                     javax.swing.SwingUtilities.invokeLater {
@@ -183,17 +191,7 @@ class ClaudeCodePanel(
 
             override fun onTitleChange(browser: CefBrowser?, title: String?) {
                 if (title != null && title.isNotBlank()) {
-                    val tabIndex = title.indexOf('\t')
-                    if (tabIndex >= 0) {
-                        val displayTitle = title.substring(0, tabIndex)
-                        val state = title.substring(tabIndex + 1)
-                        if (displayTitle.isNotBlank()) {
-                            holder.onTitleChanged?.invoke(displayTitle)
-                        }
-                        holder.onStreamingStateChanged?.invoke(state == "streaming")
-                    } else {
-                        holder.onTitleChanged?.invoke(title)
-                    }
+                    holder.onTitleChanged?.invoke(title)
                 }
             }
 
@@ -268,6 +266,21 @@ class ClaudeCodePanel(
                 return true // Always block JCEF from opening the popup natively
             }
         }, browser.cefBrowser)
+    }
+
+    /**
+     * Inject streaming state bridge so WebView can notify Kotlin of streaming changes
+     * via JBCefJSQuery instead of encoding state into document.title.
+     */
+    private fun injectStreamingStateBridge(frame: CefFrame) {
+        val js = """
+            (function() {
+                window.__notifyStreamingState = function(state) {
+                    ${streamingQuery.inject("state")}
+                };
+            })();
+        """.trimIndent()
+        frame.executeJavaScript(js, frame.url, 0)
     }
 
     /**

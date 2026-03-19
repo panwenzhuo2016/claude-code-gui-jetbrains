@@ -106,6 +106,15 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
+            <h3>0.12.2 - UI polish and rendering fixes</h3>
+            <ul>
+                <li>Fixed message reset on reconnect that caused full re-render flicker</li>
+                <li>Fixed messages being hidden behind the fixed bottom panel</li>
+                <li>Fixed Enter key submitting instead of adding newline on mobile</li>
+                <li>Rendered fullscreen modals via React Portal for proper z-index layering</li>
+                <li>Applied max-height collapse to command-name user messages</li>
+                <li>Corrected page title from "Claude Code 2" to "Claude Code"</li>
+            </ul>
             <h3>0.12.1 - Fix session reset when splitting or moving editor tabs to another tab group</h3>
             <ul>
                 <li>Fixed WebView state loss when moving or splitting editor tabs</li>

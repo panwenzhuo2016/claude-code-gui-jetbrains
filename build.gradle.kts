@@ -106,6 +106,11 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
+            <h3>0.12.4 - Fix "idle" text in editor tab title</h3>
+            <ul>
+                <li>Fixed "idle" text appearing in editor tab title caused by Chromium normalizing tab characters in document.title</li>
+                <li>Replaced document.title-based streaming state with JBCefJSQuery bridge</li>
+            </ul>
             <h3>0.12.3 - Unread badge on editor tab icon</h3>
             <ul>
                 <li>Added unread badge to editor tab icon when streaming completes on a hidden tab</li>

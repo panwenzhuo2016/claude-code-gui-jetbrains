@@ -57,7 +57,7 @@ export const UserMessageRenderer: React.FC<UserMessageRendererProps> = ({ messag
       <div className="group py-2 px-4">
         <div className="flex items-start gap-2">
           <div className="min-w-0">
-            <MessageBox collapsible={false}>
+            <MessageBox>
               <div className="text-white/80 text-[13px] leading-relaxed whitespace-pre-wrap break-words">
                 <span className="text-white/50">{'/'}</span>{parsedContent.commandName}
                 {parsedContent.text && (

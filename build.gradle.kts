@@ -106,6 +106,10 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
+            <h3>0.12.5 - Fix chat message area layout</h3>
+            <ul>
+                <li>Fixed chat message area layout with proper flex sizing</li>
+            </ul>
             <h3>0.12.4 - Fix "idle" text in editor tab title</h3>
             <ul>
                 <li>Fixed "idle" text appearing in editor tab title caused by Chromium normalizing tab characters in document.title</li>

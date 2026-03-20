@@ -191,7 +191,7 @@ export function ChatMessageArea(props: Props) {
 
   // Render messages with widgets
   return (
-    <div ref={containerRef} className="text-xs" onClick={log}>
+    <div ref={containerRef} className="flex-1 text-xs" onClick={log}>
       {mergedMessages.map((message) => (
         <div key={message.uuid} onClick={() => console.log('message', message.uuid, message)}>
           <MessageBubble message={message} onRetry={onRetry} />

@@ -91,7 +91,7 @@ export function ChatPage() {
       </BannerArea>
 
       {/* Messages Area */}
-      <div ref={scrollContainerRef} className={`flex-1 overflow-y-auto w-full h-screen pt-10 ${isMobile() ? 'pb-52' : ''} bg-neutral-900 z-0`}>
+      <div ref={scrollContainerRef} className={`flex flex-col flex-1 overflow-y-auto w-full h-screen pt-10 ${isMobile() ? 'pb-52' : ''} bg-neutral-900 z-0`}>
         <ChatMessageArea isStreaming={isStreaming && !pendingUserAnswer && !pendingPlan && !pendingPermission} scrollContainerRef={scrollContainerRef} />
 
         {/* Input Area */}

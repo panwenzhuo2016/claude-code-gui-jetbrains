@@ -94,30 +94,31 @@ Idle → Streaming → Waiting Permission → Has Diff → Error
 
 ## 빌드 명령어
 
-모든 빌드는 `./scripts/build.sh <command>` 를 통해 실행한다. 직접 `cd`, `pnpm`, `./gradlew` 명령을 조합하지 않는다.
+모든 빌드는 `bash ./scripts/build.sh <command>` 를 통해 실행한다. 직접 `cd`, `pnpm`, `./gradlew` 명령을 조합하지 않는다.
 
-> **중요**: `./scripts/build.sh -h` 로 전체 명령 목록을 확인할 수 있다.
+> **중요**: `bash ./scripts/build.sh -h` 로 전체 명령 목록을 확인할 수 있다.
 
 ### 주요 명령
 
 | 명령 | 용도 |
 |------|------|
-| `./scripts/build.sh be-build` | 백엔드 빌드 |
-| `./scripts/build.sh wv-build` | 웹뷰 빌드 |
-| `./scripts/build.sh build` | 플러그인 빌드 |
-| `./scripts/build.sh full-build` | 전체 빌드 (be + wv + plugin) |
-| `./scripts/build.sh dist` | 배포용 빌드 (be + wv + buildPlugin) |
-| `./scripts/build.sh run-ide` | IDE 테스트 실행 |
-| `./scripts/build.sh clear-cache` | 빌드 캐시/결과물 초기화 |
-| `./scripts/build.sh wv-lint` | WebView TypeScript 체크 |
-| `./scripts/build.sh wv-test` | WebView 테스트 |
-| `./scripts/build.sh all` | 전체 빌드 + IDE 실행 |
+| `bash ./scripts/build.sh be-build` | 백엔드 빌드 |
+| `bash ./scripts/build.sh wv-build` | 웹뷰 빌드 |
+| `bash ./scripts/build.sh build` | 플러그인 빌드 |
+| `bash ./scripts/build.sh full-build` | 전체 빌드 (be + wv + plugin) |
+| `bash ./scripts/build.sh dist` | 배포용 빌드 (be + wv + buildPlugin) |
+| `bash ./scripts/build.sh run-ide` | IDE 테스트 실행 |
+| `bash ./scripts/build.sh clear-cache` | 빌드 캐시/결과물 초기화 |
+| `bash ./scripts/build.sh wv-lint` | WebView TypeScript 체크 |
+| `bash ./scripts/build.sh wv-test` | WebView 테스트 |
+| `bash ./scripts/build.sh all` | 전체 빌드 + IDE 실행 |
 
 ### 에이전트 행동 지침
 
-1. **빌드/테스트 시**: 반드시 `./scripts/build.sh` 사용
+1. **빌드/테스트 시**: 반드시 `bash ./scripts/build.sh` 사용
 2. **cd 금지**: 스크립트가 내부적으로 `pnpm -C`, `gradlew -p` 로 경로 처리
 3. **새 명령 필요 시**: `scripts/build.sh`에 case 추가 제안
+4. **모든 셸 명령어는 `bash` 를 앞에 붙여서 실행**: 예) `bash ./scripts/build.sh build`, `bash -c "ls -la"` 등
 
 ## 로컬 스킬
 
@@ -137,7 +138,7 @@ JetBrains Marketplace 배포 시 **Plugin Verifier**가 API 사용을 자동 검
 - **Internal API** 사용 → 오류(error), 배포 거부 가능
 - `EnvironmentUtil` 등 internal/deprecated 가능성이 있는 클래스 주의
 - `@ApiStatus.Internal`, `impl` 패키지 내 클래스는 절대 사용 금지
-- 배포 전 `./scripts/build.sh dist`로 빌드 후 Plugin Verifier 결과 반드시 확인
+- 배포 전 `bash ./scripts/build.sh dist`로 빌드 후 Plugin Verifier 결과 반드시 확인
 
 ## 로깅 시스템
 

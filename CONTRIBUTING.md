@@ -54,10 +54,10 @@ git clone https://github.com/yhk1038/claude-code-gui-jetbrains.git
 cd claude-code-gui-jetbrains
 
 # Install backend dependencies
-./scripts/build.sh be-install
+bash ./scripts/build.sh be-install
 
 # Install webview dependencies
-./scripts/build.sh wv-install
+bash ./scripts/build.sh wv-install
 ```
 
 ### 2. Run in development mode
@@ -65,7 +65,7 @@ cd claude-code-gui-jetbrains
 **Option A: Full plugin (in a sandboxed IDE)**
 
 ```bash
-./scripts/build.sh all
+bash ./scripts/build.sh all
 ```
 
 This builds everything and launches a sandboxed JetBrains IDE with the plugin loaded.
@@ -74,10 +74,10 @@ This builds everything and launches a sandboxed JetBrains IDE with the plugin lo
 
 ```bash
 # Terminal 1: Start the backend dev server
-./scripts/build.sh be-dev
+bash ./scripts/build.sh be-dev
 
 # Terminal 2: Start the webview dev server
-./scripts/build.sh wv-dev
+bash ./scripts/build.sh wv-dev
 ```
 
 Open the URL shown by Vite (usually `http://localhost:5173`). This runs the full product in the browser — it is not a mock environment.
@@ -86,23 +86,23 @@ Open the URL shown by Vite (usually `http://localhost:5173`). This runs the full
 
 ```bash
 # Run webview tests
-./scripts/build.sh wv-test
+bash ./scripts/build.sh wv-test
 
 # Type-check backend
-./scripts/build.sh be-lint
+bash ./scripts/build.sh be-lint
 
 # Type-check webview
-./scripts/build.sh wv-lint
+bash ./scripts/build.sh wv-lint
 
 # Full plugin build
-./scripts/build.sh build
+bash ./scripts/build.sh build
 ```
 
 ## Build Commands
 
-All builds go through `./scripts/build.sh`. Do **not** run `cd`, `pnpm`, or `./gradlew` directly.
+All builds go through `bash ./scripts/build.sh`. Do **not** run `cd`, `pnpm`, or `./gradlew` directly.
 
-Run `./scripts/build.sh -h` for the full list. Key commands:
+Run `bash ./scripts/build.sh -h` for the full list. Key commands:
 
 | Command | What it does |
 |---------|-------------|
@@ -131,10 +131,10 @@ Only switch to `run-ide` when you need to test IDE-specific features (editor tab
 
 ```bash
 # WebView unit tests
-./scripts/build.sh wv-test
+bash ./scripts/build.sh wv-test
 
 # Watch mode (re-runs on file change)
-./scripts/build.sh wv-test-watch
+bash ./scripts/build.sh wv-test-watch
 ```
 
 ## Code Style
@@ -196,10 +196,10 @@ MyComponent/
 2. Make your changes following the code style above
 3. Ensure all checks pass:
    ```bash
-   ./scripts/build.sh wv-test
-   ./scripts/build.sh wv-lint
-   ./scripts/build.sh be-lint
-   ./scripts/build.sh full-build
+   bash ./scripts/build.sh wv-test
+   bash ./scripts/build.sh wv-lint
+   bash ./scripts/build.sh be-lint
+   bash ./scripts/build.sh full-build
    ```
 4. Write a clear PR description explaining **what** you changed and **why**
 5. Submit the PR against `main`

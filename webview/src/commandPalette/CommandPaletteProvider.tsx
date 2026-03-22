@@ -164,8 +164,14 @@ export function CommandPaletteProvider({ children }: CommandPaletteProviderProps
     if (commands.length > 0) {
       const localCommands = [new ClearCommand()];
       const localLabels: Set<string> = new Set(localCommands.map(c => c.label));
+      const seen = new Set<string>();
       const dynamicCommands = commands
-        .filter(cmd => !localLabels.has(cmd.name.startsWith('/') ? cmd.name : `/${cmd.name}`))
+        .filter(cmd => {
+          const normalized = cmd.name.startsWith('/') ? cmd.name : `/${cmd.name}`;
+          if (localLabels.has(normalized) || seen.has(normalized)) return false;
+          seen.add(normalized);
+          return true;
+        })
         .map((cmd, i) => new CliPassthroughCommand(cmd, 100 + i));
       const sortedCommands = [...localCommands, ...dynamicCommands]
         .sort((a, b) => a.label.localeCompare(b.label));

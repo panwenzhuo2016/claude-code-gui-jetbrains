@@ -216,7 +216,7 @@ describe('채팅 스트리밍 통합 테스트', () => {
     }));
   });
 
-  it('STREAM_EVENT 수신: assistant 메시지에 text가 축적된다', async () => {
+  it('CLI_EVENT(stream_event) 수신: assistant 메시지에 text가 축적된다', async () => {
     mockSession.currentSessionId = 'test-session';
 
     render(
@@ -238,12 +238,16 @@ describe('채팅 스트리밍 통합 테스트', () => {
       expect(screen.getByTestId('messages-count')).toHaveTextContent('2');
     });
 
-    // Simulate stream deltas
+    // Simulate stream deltas via CLI_EVENT channel
     await act(async () => {
-      emitBridgeEvent('STREAM_EVENT', {
-        delta: {
-          type: 'text_delta',
-          text: 'Hello',
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'stream_event',
+        event: {
+          type: 'content_block_delta',
+          delta: {
+            type: 'text_delta',
+            text: 'Hello',
+          },
         },
       });
     });
@@ -257,10 +261,14 @@ describe('채팅 스트리밍 통합 테스트', () => {
 
     // Simulate more stream chunks
     await act(async () => {
-      emitBridgeEvent('STREAM_EVENT', {
-        delta: {
-          type: 'text_delta',
-          text: ' world',
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'stream_event',
+        event: {
+          type: 'content_block_delta',
+          delta: {
+            type: 'text_delta',
+            text: ' world',
+          },
         },
       });
     });
@@ -270,7 +278,7 @@ describe('채팅 스트리밍 통합 테스트', () => {
     });
   });
 
-  it('RESULT_MESSAGE 수신: isStreaming이 false로 전환된다', async () => {
+  it('CLI_EVENT(result) 수신: isStreaming이 false로 전환된다', async () => {
     mockSession.currentSessionId = 'test-session';
 
     render(
@@ -281,10 +289,14 @@ describe('채팅 스트리밍 통합 테스트', () => {
 
     // Start streaming
     await act(async () => {
-      emitBridgeEvent('STREAM_EVENT', {
-        delta: {
-          type: 'text_delta',
-          text: 'Test',
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'stream_event',
+        event: {
+          type: 'content_block_delta',
+          delta: {
+            type: 'text_delta',
+            text: 'Test',
+          },
         },
       });
     });
@@ -293,10 +305,10 @@ describe('채팅 스트리밍 통합 테스트', () => {
       expect(screen.getByTestId('is-streaming')).toHaveTextContent('true');
     });
 
-    // End streaming
+    // End streaming via result event
     await act(async () => {
-      emitBridgeEvent('RESULT_MESSAGE', {
-        status: 'success',
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'result',
       });
     });
 
@@ -330,7 +342,7 @@ describe('채팅 스트리밍 통합 테스트', () => {
     expect(screen.getByTestId('is-streaming')).toHaveTextContent('false');
   });
 
-  it('stop: isStreaming=false, STOP_SESSION이 bridge로 전송된다', async () => {
+  it('stop: STOP_SESSION이 bridge로 전송되고, result 수신 후 isStreaming=false', async () => {
     mockSession.currentSessionId = 'test-session';
 
     render(
@@ -341,10 +353,14 @@ describe('채팅 스트리밍 통합 테스트', () => {
 
     // Start streaming
     await act(async () => {
-      emitBridgeEvent('STREAM_EVENT', {
-        delta: {
-          type: 'text_delta',
-          text: 'Test',
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'stream_event',
+        event: {
+          type: 'content_block_delta',
+          delta: {
+            type: 'text_delta',
+            text: 'Test',
+          },
         },
       });
     });
@@ -353,21 +369,27 @@ describe('채팅 스트리밍 통합 테스트', () => {
       expect(screen.getByTestId('is-streaming')).toHaveTextContent('true');
     });
 
-    // Stop streaming
+    // Stop streaming — sends interrupt signal
     const stopButton = screen.getByTestId('stop');
     await act(async () => {
       fireEvent.click(stopButton);
     });
 
+    expect(mockBridge.send).toHaveBeenCalledWith('STOP_SESSION', {});
+
+    // CLI responds with result event to end streaming
+    await act(async () => {
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'result',
+      });
+    });
+
     await waitFor(() => {
       expect(screen.getByTestId('is-streaming')).toHaveTextContent('false');
     });
-
-    expect(mockBridge.send).toHaveBeenCalledWith('STOP_SESSION', {});
-    expect(mockSession.setSessionState).toHaveBeenCalledWith('idle');
   });
 
-  it('전체 흐름: 입력 → sendMessage → STREAM_EVENT → RESULT_MESSAGE → 완료', async () => {
+  it('전체 흐름: 입력 → sendMessage → CLI_EVENT(stream) → CLI_EVENT(result) → 완료', async () => {
     mockSession.currentSessionId = 'test-session';
 
     render(
@@ -391,12 +413,16 @@ describe('채팅 스트리밍 통합 테스트', () => {
 
     expect(screen.getByTestId('msg-user')).toHaveTextContent('Complete test');
 
-    // 2. Start streaming
+    // 2. Start streaming via CLI_EVENT
     await act(async () => {
-      emitBridgeEvent('STREAM_EVENT', {
-        delta: {
-          type: 'text_delta',
-          text: 'Response',
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'stream_event',
+        event: {
+          type: 'content_block_delta',
+          delta: {
+            type: 'text_delta',
+            text: 'Response',
+          },
         },
       });
     });
@@ -410,10 +436,14 @@ describe('채팅 스트리밍 통합 테스트', () => {
 
     // 3. More stream chunks
     await act(async () => {
-      emitBridgeEvent('STREAM_EVENT', {
-        delta: {
-          type: 'text_delta',
-          text: ' part 2',
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'stream_event',
+        event: {
+          type: 'content_block_delta',
+          delta: {
+            type: 'text_delta',
+            text: ' part 2',
+          },
         },
       });
     });
@@ -422,10 +452,10 @@ describe('채팅 스트리밍 통합 테스트', () => {
       expect(screen.getByTestId('msg-assistant')).toHaveTextContent('Response part 2');
     });
 
-    // 4. Complete streaming
+    // 4. Complete streaming via result
     await act(async () => {
-      emitBridgeEvent('RESULT_MESSAGE', {
-        status: 'success',
+      emitBridgeEvent('CLI_EVENT', {
+        type: 'result',
       });
     });
 

@@ -193,9 +193,10 @@ describe('SessionContext', () => {
       capturedCtx?.switchSession('session-1');
     });
 
+    // jsdom 환경에서 isJetBrains()=false → replace: false
     expect(mockNavigate).toHaveBeenCalledWith(
       expect.stringContaining('/sessions/session-1'),
-      expect.objectContaining({ replace: true })
+      expect.objectContaining({ replace: false })
     );
     await waitFor(() => {
       expect(capturedCtx?.sessionState).toBe('idle');
@@ -244,7 +245,7 @@ describe('SessionContext', () => {
       await capturedCtx?.deleteSession('session-2');
     });
 
-    expect(mockSessionsDestroy).toHaveBeenCalledWith('session-2');
+    expect(mockSessionsDestroy).toHaveBeenCalledWith('session-2', '/test/workspace');
     await waitFor(() => {
       expect(capturedCtx?.sessions).toHaveLength(1);
       expect(capturedCtx?.sessions[0].id).toBe('session-1');
@@ -272,10 +273,10 @@ describe('SessionContext', () => {
       await capturedCtx?.deleteSession('session-1');
     });
 
-    expect(mockSessionsDestroy).toHaveBeenCalledWith('session-1');
+    expect(mockSessionsDestroy).toHaveBeenCalledWith('session-1', '/test/workspace');
     expect(mockNavigate).toHaveBeenLastCalledWith(
       expect.stringContaining('/sessions/new'),
-      expect.objectContaining({ replace: true })
+      expect.objectContaining({ replace: false })
     );
     await waitFor(() => {
       expect(capturedCtx?.sessionState).toBe('idle');

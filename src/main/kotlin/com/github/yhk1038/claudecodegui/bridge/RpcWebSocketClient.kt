@@ -94,6 +94,7 @@ class RpcWebSocketClient(
         }
 
         override fun onText(webSocket: WebSocket, data: CharSequence, last: Boolean): CompletionStage<*> {
+            logger.info("[DEBUG:onText] received data.length=${data.length}, last=$last, preview='${data.toString().take(80)}'")
             messageBuffer.append(data)
             if (last) {
                 val message = messageBuffer.toString()
@@ -123,6 +124,7 @@ class RpcWebSocketClient(
      * Parse, dispatch to rpcHandler, and send response back.
      */
     private fun handleMessage(ws: WebSocket, message: String) {
+        logger.info("[DEBUG:handleMessage] entered, message.length=${message.length}, blank=${message.isBlank()}, preview='${message.take(100)}'")
         if (message.isBlank()) return
 
         scope.launch {
@@ -137,7 +139,7 @@ class RpcWebSocketClient(
                     return@launch
                 }
 
-                logger.debug("RPC request: method=$method, id=$id")
+                logger.info("[DEBUG:handleMessage] method=$method, id=$id, params=$params")
 
                 try {
                     val result = dispatchRpc(method, params)

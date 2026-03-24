@@ -23,6 +23,8 @@ WebView (webview/):
   wv-dev         pnpm dev
   wv-test        pnpm test
   wv-test-watch  pnpm test:watch
+  wv-test-cov    pnpm test:coverage (coverage report)
+  wv-test-ui     pnpm test:ui (browser dashboard)
 
 Plugin (Gradle):
   build          gradlew build
@@ -54,6 +56,8 @@ case "${1:-}" in
   wv-dev)         pnpm -C "$ROOT/webview" dev ;;
   wv-test)        pnpm -C "$ROOT/webview" test ;;
   wv-test-watch)  pnpm -C "$ROOT/webview" test:watch ;;
+  wv-test-cov)    pnpm -C "$ROOT/webview" test:coverage ;;
+  wv-test-ui)     pnpm -C "$ROOT/webview" test:ui ;;
 
   # --- Plugin (Gradle) ---
   build)          "$ROOT/gradlew" -p "$ROOT" build ;;

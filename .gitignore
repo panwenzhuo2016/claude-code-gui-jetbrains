@@ -40,6 +40,10 @@ backend/src/**/*.js
 webview/vite.config.d.ts
 webview/vite.config.js
 
+# Test coverage & reports
+webview/coverage/
+webview/html/
+
 # Claude Code / OMC
 .claude/
 .claude-code-gui/

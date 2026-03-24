@@ -61,6 +61,12 @@ body:
       required: true
 
   - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots or screen recordings.
+
+  - type: textarea
     id: steps
     attributes:
       label: Steps to Reproduce
@@ -69,24 +75,24 @@ body:
         1.
         2.
         3.
-    validations:
-      required: true
 
   - type: textarea
     id: expected
     attributes:
       label: Expected Behavior
       description: What you expected to happen.
-    validations:
-      required: true
 
   - type: textarea
     id: actual
     attributes:
       label: Actual Behavior
       description: What actually happened.
-    validations:
-      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem.
 
   - type: textarea
     id: logs
@@ -94,15 +100,3 @@ body:
       label: Logs
       description: "Paste any relevant logs (backend console, browser DevTools, IDE log)."
       render: text
-
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Screenshots
-      description: If applicable, add screenshots or screen recordings.
-
-  - type: textarea
-    id: additional
-    attributes:
-      label: Additional Context
-      description: Any other context about the problem.

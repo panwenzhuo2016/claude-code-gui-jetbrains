@@ -182,7 +182,7 @@ object JsSettingsParser {
         // NOTE: 이 정규식은 문자열 리터럴 내부를 구분하지 않는다.
         // settings.js의 값은 모두 제한된 enum/숫자/불리언이므로 현재는 안전하다.
         // 자유 텍스트 설정이 추가된다면 문자열-인식 파서로 교체 필요.
-        return input.replace(Regex(",\\s*([}\\]])"), "$1")
+        return input.replace(Regex(",(\\s*[}\\]])"), "$1")
     }
 
     /**

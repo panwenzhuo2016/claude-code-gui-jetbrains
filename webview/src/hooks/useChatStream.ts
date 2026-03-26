@@ -133,6 +133,7 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
   const turnStartBlockCountRef = useRef<number>(0);           // 현재 턴 시작 시 content 배열의 길이 (병합 기준점)
   const devModeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const devModeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSkillToolUseIdRef = useRef<string | null>(null);    // Skill tool_result의 tool_use_id 추적 (isSynthetic 매칭용)
 
   // 콜백을 ref로 안정화 (useEffect 의존성 churn 방지)
   const onStreamStartRef = useRef(onStreamStart);
@@ -149,9 +150,31 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
     return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // Append a new message
+  // Append a new message, inserting by timestamp order.
+  // During streaming, CLI-internal messages (compact summaries, skill prompts, etc.)
+  // may arrive after later messages. Timestamp-based insertion keeps correct order.
   const appendMessage = useCallback((message: LoadedMessageDto) => {
-    setMessages(prev => [...prev, message]);
+    setMessages(prev => {
+      const ts = message.timestamp ? new Date(message.timestamp).getTime() : Infinity;
+      // Fast path: most messages arrive in order (timestamp >= last message)
+      const lastTs = prev.length > 0 && prev[prev.length - 1].timestamp
+        ? new Date(prev[prev.length - 1].timestamp!).getTime()
+        : 0;
+      if (ts >= lastTs) {
+        return [...prev, message];
+      }
+      // Out-of-order: find insertion point via binary search
+      let lo = 0, hi = prev.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        const midTs = prev[mid].timestamp ? new Date(prev[mid].timestamp!).getTime() : 0;
+        if (midTs <= ts) lo = mid + 1;
+        else hi = mid;
+      }
+      const next = [...prev];
+      next.splice(lo, 0, message);
+      return next;
+    });
   }, []);
 
   // Update an existing message
@@ -799,11 +822,36 @@ export function useChatStream(options: UseChatStreamOptions): UseChatStreamRetur
 
         const userMsg = cliEvent.message as Record<string, unknown> | undefined;
         if (userMsg) {
+          // Derive sourceToolUseID for isSynthetic skill-expanded prompts.
+          // CLI streaming doesn't include sourceToolUseID, but sends events in order:
+          //   1. user (tool_result for Skill, with tool_use_result.commandName)
+          //   2. user (isSynthetic=true, the expanded skill prompt)
+          // We track the tool_use_id from step 1 and apply it in step 2.
+          let sourceToolUseID = (cliEvent as any).sourceToolUseID as string | undefined;
+
+          const toolUseResult = (cliEvent as any).tool_use_result as { commandName?: string } | undefined;
+          const msgContent = userMsg.content;
+          if (toolUseResult?.commandName && Array.isArray(msgContent)) {
+            // Step 1: tool_result for a Skill call — remember its tool_use_id
+            const toolResultBlock = (msgContent as Array<Record<string, unknown>>).find(b => b.type === 'tool_result');
+            if (toolResultBlock?.tool_use_id) {
+              lastSkillToolUseIdRef.current = toolResultBlock.tool_use_id as string;
+            }
+          } else if ((cliEvent as any).isSynthetic && lastSkillToolUseIdRef.current) {
+            // Step 2: isSynthetic user message right after — link to the Skill tool_use
+            sourceToolUseID = lastSkillToolUseIdRef.current;
+            lastSkillToolUseIdRef.current = null;
+          } else {
+            lastSkillToolUseIdRef.current = null;
+          }
+
           const userMessage: LoadedMessageDto = {
             type: LoadedMessageType.User,
             uuid: (cliEvent as any).uuid || generateMessageId(),
             timestamp: new Date().toISOString(),
             message: userMsg as unknown as LoadedMessageDto['message'],
+            sourceToolUseID,
+            isSynthetic: (cliEvent as any).isSynthetic === true ? true : undefined,
           };
           appendMessage(userMessage);
         }

@@ -92,6 +92,9 @@ export class LoadedMessageDto {
   slug?: string;
   sessionId?: string;
 
+  // CLI streaming metadata (not in JSONL, present during streaming)
+  isSynthetic?: boolean;
+
   // UI-only fields (not in JSONL, set during streaming/local creation)
   isStreaming?: boolean;
   context?: Context[];

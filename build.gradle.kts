@@ -119,7 +119,16 @@ intellijPlatform {
             untilBuild = "261.*"
         }
         changeNotes = """
-            <h3>0.13.2 - Editor tab & resource fixes</h3>
+            <h3>0.13.3 - Account settings &amp; streaming fixes</h3>
+            <ul>
+                <li>Added Account settings page with OAuth token and API key management</li>
+                <li>Fixed streaming messages insertion order by timestamp</li>
+                <li>Fixed settings parser failing on trailing commas in JSON</li>
+                <li>Fixed input mode not preserved when starting a new session via first message</li>
+                <li>Fixed plan acceptance panel not showing due to duplicate hook state</li>
+                <li>Fixed favicon SVG dimensions</li>
+            </ul>
+            <h3>0.13.2 - Editor tab &amp; resource fixes</h3>
             <ul>
                 <li>Fixed new editor tab not opening in JetBrains environment</li>
                 <li>Fixed missing favicon-unread.svg in fallback resource extraction</li>
@@ -128,7 +137,7 @@ intellijPlatform {
             <ul>
                 <li>Maintenance patch release</li>
             </ul>
-            <h3>0.13.0 - Session management & agent tool rendering</h3>
+            <h3>0.13.0 - Session management &amp; agent tool rendering</h3>
             <ul>
                 <li>Added session delete button to session dropdown with confirmation dialog</li>
                 <li>Added TaskOutput and TaskStop tool renderers for agent sub-task display</li>

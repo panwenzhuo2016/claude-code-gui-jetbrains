@@ -1,5 +1,7 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { useTheme } from '../hooks/useTheme';
+import { useSettings } from './SettingsContext';
+import { SettingKey } from '@/types/settings';
 
 type ThemeContextType = ReturnType<typeof useTheme>;
 
@@ -10,7 +12,9 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const theme = useTheme();
+  const { settings } = useSettings();
+  // Bridge settings theme to useTheme so DOM class stays in sync
+  const theme = useTheme(settings[SettingKey.THEME]);
 
   return (
     <ThemeContext.Provider value={theme}>

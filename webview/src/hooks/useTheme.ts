@@ -8,47 +8,67 @@ interface UseThemeReturn {
   isDark: boolean;
 }
 
-export function useTheme(): UseThemeReturn {
-  const [theme, setThemeState] = useState<ThemeMode>(ThemeMode.LIGHT);
-
-  // Sync with IDE theme via CSS variables
-  useEffect(() => {
-    const detectTheme = () => {
-      // Check for IDE-injected theme class
-      const isDark = document.documentElement.classList.contains('dark') ||
-                     getComputedStyle(document.documentElement)
-                       .getPropertyValue('--ide-bg')
-                       .trim()
-                       .match(/^#[0-3]/); // Dark colors start with 0-3
-      setThemeState(isDark ? ThemeMode.DARK : ThemeMode.LIGHT);
-    };
-
-    detectTheme();
-
-    // Observe class changes for theme sync
-    const observer = new MutationObserver(detectTheme);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-
-    return () => observer.disconnect();
+/**
+ * Resolve effective theme: SYSTEM -> detect OS preference, otherwise use explicit value.
+ * Apply the resolved theme to <html> classList for Tailwind dark mode.
+ */
+export function useTheme(settingsTheme?: ThemeMode): UseThemeReturn {
+  const resolveTheme = useCallback((mode: ThemeMode): 'light' | 'dark' => {
+    if (mode === ThemeMode.SYSTEM) {
+      // In JCEF, prefers-color-scheme may not reflect IDE theme,
+      // but it's the best fallback for browser environment
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return mode === ThemeMode.DARK ? 'dark' : 'light';
   }, []);
 
-  const setTheme = useCallback((newTheme: ThemeMode) => {
-    setThemeState(newTheme);
-    if (newTheme === ThemeMode.DARK) {
+  const initialMode = settingsTheme ?? ThemeMode.LIGHT;
+  const [theme, setThemeState] = useState<ThemeMode>(initialMode);
+
+  // Apply theme class to <html> element
+  const applyToDOM = useCallback((resolved: 'light' | 'dark') => {
+    if (resolved === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
   }, []);
 
+  // Sync with settings theme when it changes externally
+  useEffect(() => {
+    if (settingsTheme === undefined) return;
+    setThemeState(settingsTheme);
+    applyToDOM(resolveTheme(settingsTheme));
+  }, [settingsTheme, resolveTheme, applyToDOM]);
+
+  // Listen for OS theme changes (only relevant when mode is SYSTEM)
+  useEffect(() => {
+    if (theme !== ThemeMode.SYSTEM) return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      applyToDOM(e.matches ? 'dark' : 'light');
+    };
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, [theme, applyToDOM]);
+
+  // Apply on initial mount
+  useEffect(() => {
+    applyToDOM(resolveTheme(theme));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setTheme = useCallback((newTheme: ThemeMode) => {
+    setThemeState(newTheme);
+    applyToDOM(resolveTheme(newTheme));
+  }, [resolveTheme, applyToDOM]);
+
   const toggleTheme = useCallback(() => {
     setTheme(theme === ThemeMode.DARK ? ThemeMode.LIGHT : ThemeMode.DARK);
   }, [theme, setTheme]);
 
-  const isDark = theme === ThemeMode.DARK;
+  const resolved = resolveTheme(theme);
+  const isDark = resolved === 'dark';
 
   return {
     theme,

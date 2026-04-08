@@ -14,6 +14,8 @@ plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.1"
 }
 
+val pnpm = if (System.getProperty("os.name").lowercase().contains("win")) "pnpm.cmd" else "pnpm"
+
 group = "com.github.yhk1038"
 version = providers.gradleProperty("pluginVersion").get()
 
@@ -200,7 +202,7 @@ tasks {
         description = "Install webview npm dependencies via pnpm"
         dependsOn("syncVersions")
         workingDir = file("webview")
-        commandLine("pnpm", "install", "--frozen-lockfile")
+        commandLine(pnpm, "install", "--frozen-lockfile")
         inputs.files(file("webview/package.json"), file("webview/pnpm-lock.yaml"))
         outputs.dir(file("webview/node_modules"))
     }
@@ -209,7 +211,7 @@ tasks {
         description = "Install backend npm dependencies via pnpm"
         dependsOn("syncVersions")
         workingDir = file("backend")
-        commandLine("pnpm", "install")
+        commandLine(pnpm, "install")
         inputs.files(fileTree("backend").include("package.json"))
         outputs.dir(file("backend/node_modules"))
     }
@@ -218,7 +220,7 @@ tasks {
         description = "Build the WebView frontend (Vite)"
         dependsOn("pnpmInstallWebview")
         workingDir = file("webview")
-        commandLine("pnpm", "run", "build")
+        commandLine(pnpm, "run", "build")
         inputs.dir(file("webview/src"))
         inputs.files(file("webview/package.json"), file("webview/vite.config.ts"))
         outputs.dir(file("webview/dist"))
@@ -238,7 +240,7 @@ tasks {
         description = "Build the Node.js backend bundle (esbuild)"
         dependsOn("pnpmInstallBackend")
         workingDir = file("backend")
-        commandLine("pnpm", "run", "build")
+        commandLine(pnpm, "run", "build")
         inputs.dir(file("backend/src"))
         inputs.files(file("backend/esbuild.mjs"), file("backend/package.json"))
         outputs.file(file("backend/dist/backend.mjs"))
